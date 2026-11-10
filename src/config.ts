@@ -67,23 +67,26 @@ export function actionDomain(preset: NetworkPreset) {
   } as const;
 }
 
-/** ActionData typed-data fields, mirroring the node's smltxt flow. */
-export const ACTION_TYPES = {
+/** ActionData typed-data fields — exact shape proven by the staging E2E. */
+export const ACTION_TYPES: Record<string, { name: string; type: string }[]> = {
   ActionData: [
     { name: 'actionType', type: 'uint8' },
     { name: 'senderId', type: 'uint32' },
     { name: 'receiverId', type: 'uint32' },
     { name: 'receiverCawonce', type: 'uint32' },
-    { name: 'networkId', type: 'uint16' },
+    { name: 'networkId', type: 'uint32' },
     { name: 'cawonce', type: 'uint32' },
     { name: 'recipients', type: 'uint32[]' },
-    { name: 'amounts', type: 'uint256[]' },
+    { name: 'amounts', type: 'uint64[]' },
     { name: 'text', type: 'bytes' },
   ],
-} as const;
+};
 
 export const ACTION_TYPE = {
   post: 0,
   like: 1,
-  recaw: 2,
+  unlike: 2,
+  recaw: 3,
+  follow: 4,
+  unfollow: 5,
 } as const;
