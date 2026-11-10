@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Text, TouchableOpacity, View } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ethers } from 'ethers';
@@ -156,6 +156,10 @@ export default function App() {
           paddingBottom: 6,
         }}
       >
+        <Image
+          source={require('./assets/icon.png')}
+          style={{ width: 30, height: 30, borderRadius: 8, marginRight: 8 }}
+        />
         <Text style={{ fontSize: 24, fontWeight: '800', color: colors.accentDark }}>CAW</Text>
         <Text style={{ fontSize: 11, color: colors.sub, marginLeft: 6 }}>Ethereum Edition</Text>
         <View style={{ flex: 1 }} />
