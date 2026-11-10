@@ -26,7 +26,7 @@ Gilgamesh 版 CAW の自前デプロイ。QL1 版 CAW Social アプリとは別�
 2. 認証: ノード API の personal_sign チャレンジ（`Verify wallet ownership for CAW` 形式）→ セッション
 3. ホーム TL: `GET /api/caws` 系で投稿一覧（名前・本文・時刻・いいね数など）
 4. 投稿: EIP-712（ActionData 型、CawActions を verifyingContract）で署名 → `POST /api/actions`
-   - cawonce は `POST /api/users/check-cawonces` で安全な値を取る（INT4 制約）
+   - cawonce は **チェーンの `nextCawonce(senderId)`（uint32 引数）を正**とする。`check-cawonces` はノード DB 基準で、新品 DB のノードでは使用済み番号を知らず 0 を返してしまう（2026-11-10 復旧時に実証：cawonce 0 の再送はバリデータが defer し永遠に確定しない）。DB 側と突き合わせて大きい方を使う
    - tip は `GET /api/validator-analytics/tip-config` の baseTip
    - 本文は smltxt 圧縮（ノード側の流儀に合わせる）
 5. 名前表示: 自分の tokenId と名前（台帳読み取り／API の authorizedTokenIds）
