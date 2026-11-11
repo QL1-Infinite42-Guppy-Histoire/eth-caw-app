@@ -4,6 +4,7 @@ import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'reac
 import { colors, styles } from '../theme';
 import { createWallet, importWallet } from '../lib/wallet';
 import { STRINGS, type Lang } from '../i18n';
+import WordConfirm from '../components/WordConfirm';
 
 export default function Onboarding({ lang, onReady }: { lang: Lang; onReady: () => void }) {
   const t = STRINGS[lang];
@@ -60,9 +61,14 @@ export default function Onboarding({ lang, onReady }: { lang: Lang; onReady: () 
           <Text selectable style={[styles.body, { fontWeight: '600' }]}>
             {phrase}
           </Text>
-          <TouchableOpacity style={styles.button} onPress={onReady}>
-            <Text style={styles.buttonText}>{t.proceedBtn}</Text>
-          </TouchableOpacity>
+          <WordConfirm
+            phrase={phrase}
+            hint={t.checkHint}
+            wrongText={t.checkWrong}
+            doneText={t.checkDone}
+            buttonLabel={t.proceedBtn}
+            onDone={onReady}
+          />
         </View>
       )}
 

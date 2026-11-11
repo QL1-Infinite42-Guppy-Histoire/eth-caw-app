@@ -9,6 +9,7 @@ import { PRESETS, type NetworkPreset } from '../config';
 import { LANGS, STRINGS, fmt, type Lang } from '../i18n';
 import type { OwnedName } from '../lib/mint';
 import NameCard from '../components/NameCard';
+import WordConfirm from '../components/WordConfirm';
 
 interface Props {
   lang: Lang;
@@ -44,6 +45,8 @@ export default function Settings({
   const [urlText, setUrlText] = useState(nodeUrl);
   const [address, setAddress] = useState<string | null>(null);
   const [phrase, setPhrase] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmDone, setConfirmDone] = useState(false);
 
   React.useEffect(() => {
     storedAddress().then(setAddress);
@@ -143,6 +146,30 @@ export default function Settings({
           </TouchableOpacity>
         )}
         <Text style={styles.sub}>{t.phraseWarning}</Text>
+        {confirmDone ? (
+          <Text style={[styles.body, { color: colors.accent }]}>{t.checkDone}</Text>
+        ) : confirmOpen && phrase ? (
+          <WordConfirm
+            phrase={phrase}
+            hint={t.checkHint}
+            wrongText={t.checkWrong}
+            doneText={t.checkDone}
+            buttonLabel="OK"
+            onDone={() => {
+              setConfirmOpen(false);
+              setConfirmDone(true);
+            }}
+          />
+        ) : (
+          <TouchableOpacity
+            onPress={async () => {
+              if (!phrase) await showPhrase();
+              setConfirmOpen(true);
+            }}
+          >
+            <Text style={{ color: colors.accent, fontSize: 14 }}>{t.reBackupBtn}</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.card}>
@@ -164,7 +191,7 @@ export default function Settings({
         <Text style={styles.dangerText}>{t.deleteWallet}</Text>
       </TouchableOpacity>
       <Text style={[styles.sub, { textAlign: 'center' }]}>
-        {fmt(t.versionFooter, { v: 'v0.1.8' })}
+        {fmt(t.versionFooter, { v: 'v0.1.9' })}
       </Text>
     </ScrollView>
   );
