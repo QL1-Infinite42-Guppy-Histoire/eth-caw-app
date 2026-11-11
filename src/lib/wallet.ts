@@ -1,6 +1,9 @@
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ethers } from 'ethers';
+
+import { STORAGE_KEYS } from '../config';
 
 // The wallet lives only on this device: the recovery phrase is stored in
 // SecureStore (backed by the Android Keystore) and never leaves the phone.
@@ -56,4 +59,7 @@ export async function revealPhrase(): Promise<string> {
 export async function deleteWallet(): Promise<void> {
   await SecureStore.deleteItemAsync(PHRASE_KEY);
   await SecureStore.deleteItemAsync(ADDRESS_KEY);
+  // The node session belongs to this wallet; never leave it behind for the
+  // next wallet created on this device.
+  await AsyncStorage.removeItem(STORAGE_KEYS.session);
 }

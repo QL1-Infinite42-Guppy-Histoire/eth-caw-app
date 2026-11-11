@@ -62,10 +62,11 @@ function AppInner() {
       setNodeUrl(url);
       try {
         const existing = await loadSession();
-        if (existing) {
+        if (existing && existing.address === w.address) {
           setSession(existing);
           return;
         }
+        if (existing) await saveSession(null); // another wallet's session: drop it
         const s = await verifyWallet(w, p);
         setSession(s);
       } catch (e) {

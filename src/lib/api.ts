@@ -15,6 +15,8 @@ export interface Session {
   sessionToken: string;
   authorizedTokenIds: number[];
   expiresAt: number;
+  /** Wallet this session was verified for; a different wallet must not reuse it. */
+  address?: string;
 }
 
 export class IndexingError extends Error {
@@ -82,6 +84,7 @@ export async function verifyWallet(
     sessionToken: body.sessionToken,
     authorizedTokenIds: body.authorizedTokenIds ?? [],
     expiresAt: body.expiresAt ?? Date.now() + 24 * 3600 * 1000,
+    address: wallet.address,
   };
   await saveSession(session);
   return session;
@@ -124,11 +127,17 @@ export async function getFeed(
   return { items: body.items ?? [], nextCursor: body.nextCursor };
 }
 
+// The tip is proposed by the connected node, but the signature that pays it
+// is the user's — so never sign more than this cap, whatever a node claims.
+// (Protocol default is 1,000 CAW; the cap is 10x that.)
+export const MAX_VALIDATOR_TIP = 10000n;
+
 export async function getValidatorTip(): Promise<bigint> {
   const res = await fetch(`${baseUrl}/api/validator-analytics/tip-config`);
   if (!res.ok) throw new Error('tip 設定の取得に失敗しました');
   const body = await res.json();
-  return BigInt(body.baseTip ?? 1000);
+  const tip = BigInt(body.baseTip ?? 1000);
+  return tip > MAX_VALIDATOR_TIP ? MAX_VALIDATOR_TIP : tip;
 }
 
 export async function submitAction(

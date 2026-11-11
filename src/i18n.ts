@@ -149,6 +149,7 @@ const ja = {
   swapEnterAmount: '金額を入力してください',
   stepSwapping: 'スワップしています…',
   swapRoute: 'Uniswap V2（Ethereum メインネット）で交換します。',
+  validatorTip: 'バリデータチップ：{n} CAW（上限 10,000 CAW）',
   importFailed: 'インポートに失敗しました',
 };
 
@@ -274,6 +275,7 @@ const en: Dict = {
   swapEnterAmount: 'Enter an amount',
   stepSwapping: 'Swapping…',
   swapRoute: 'Swaps via Uniswap V2 on Ethereum mainnet.',
+  validatorTip: 'Validator tip: {n} CAW (capped at 10,000 CAW)',
   importFailed: 'Import failed',
 };
 
@@ -389,6 +391,7 @@ const zh: Dict = {
   swapEnterAmount: '请输入金额',
   stepSwapping: '正在交换…',
   swapRoute: '通过 Uniswap V2（以太坊主网）交换。',
+  validatorTip: '验证者小费：{n} CAW（上限 10,000 CAW）',
   importFailed: '导入失败',
 };
 
@@ -505,6 +508,7 @@ const ko: Dict = {
   swapEnterAmount: '금액을 입력하세요',
   stepSwapping: '스왑 중…',
   swapRoute: 'Uniswap V2(이더리움 메인넷)에서 교환합니다.',
+  validatorTip: '밸리데이터 팁: {n} CAW (상한 10,000 CAW)',
   importFailed: '가져오기에 실패했습니다',
 };
 
@@ -628,6 +632,7 @@ const es: Dict = {
   swapEnterAmount: 'Ingresa una cantidad',
   stepSwapping: 'Intercambiando…',
   swapRoute: 'Intercambio vía Uniswap V2 en la red principal de Ethereum.',
+  validatorTip: 'Propina al validador: {n} CAW (máx. 10,000 CAW)',
   importFailed: 'La importación falló',
 };
 

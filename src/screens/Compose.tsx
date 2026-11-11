@@ -4,9 +4,10 @@ import { ethers } from 'ethers';
 
 import { styles } from '../theme';
 import { postAction } from '../lib/actions';
+import { getValidatorTip } from '../lib/api';
 import type { Session } from '../lib/api';
 import type { NetworkPreset } from '../config';
-import { STRINGS, type Lang } from '../i18n';
+import { STRINGS, fmt, type Lang } from '../i18n';
 
 interface Props {
   lang: Lang;
@@ -21,6 +22,13 @@ export default function Compose({ lang, wallet, preset, session, senderId, onDon
   const t = STRINGS[lang];
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const [tip, setTip] = useState<bigint | null>(null);
+
+  React.useEffect(() => {
+    getValidatorTip()
+      .then(setTip)
+      .catch(() => setTip(null));
+  }, []);
 
   const submit = async () => {
     const body = text.trim();
@@ -41,6 +49,9 @@ export default function Compose({ lang, wallet, preset, session, senderId, onDon
     <View style={[styles.root, styles.content]}>
       <Text style={styles.title}>{t.postTitle}</Text>
       <Text style={styles.sub}>{t.postNote}</Text>
+      {tip != null && (
+        <Text style={styles.sub}>{fmt(t.validatorTip, { n: tip.toLocaleString('ja-JP') })}</Text>
+      )}
       <TextInput
         style={[styles.input, { minHeight: 140, textAlignVertical: 'top' }]}
         multiline
