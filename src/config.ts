@@ -44,8 +44,8 @@ export const MAINNET_PRESET: NetworkPreset = {
   l2ChainId: 8453,
   l1RpcUrl: 'https://ethereum-rpc.publicnode.com',
   l2RpcUrl: 'https://mainnet.base.org',
-  cawActionsL2: '0xE03a95A5f1681c80D9308A4E571cE9Ee8977F326',
-  cawProfileL1: '0x82455d1a90DD177F02a9b9d0f115Ce30e224DCE3',
+  cawActionsL2: '0xf4dFCf0EF472E8aaD3783479051f61EC574C6A8E',
+  cawProfileL1: '0xa3700808e1c62E989fbf5CE15312d79d1475bDb4',
   isTestnet: false,
 };
 
