@@ -67,11 +67,31 @@ export async function getBalances(
   return { eth, caw };
 }
 
+// Pure-JS base64 decode (React Native has no global Buffer). The tokenURI
+// JSON and the username itself are ASCII, so byte->char mapping is safe here.
+function b64ToAscii(b64: string): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  let out = '';
+  let buffer = 0;
+  let bits = 0;
+  for (const ch of b64.replace(/=+$/, '')) {
+    const v = chars.indexOf(ch);
+    if (v < 0) continue;
+    buffer = (buffer << 6) | v;
+    bits += 6;
+    if (bits >= 8) {
+      bits -= 8;
+      out += String.fromCharCode((buffer >> bits) & 0xff);
+    }
+  }
+  return out;
+}
+
 function nameFromTokenUri(uri: string): string | null {
   try {
     const b64 = uri.split(',')[1];
     if (!b64) return null;
-    const json = JSON.parse(Buffer.from(b64, 'base64').toString('utf8'));
+    const json = JSON.parse(b64ToAscii(b64));
     return typeof json.name === 'string' ? json.name : null;
   } catch {
     return null;
