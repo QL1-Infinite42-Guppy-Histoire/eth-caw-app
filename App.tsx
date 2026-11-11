@@ -29,12 +29,13 @@ import { fetchOwnedNames, type OwnedName } from './src/lib/mint';
 import { pickRegistryNode } from './src/lib/nodes';
 import Onboarding from './src/screens/Onboarding';
 import Mint from './src/screens/Mint';
+import Swap from './src/screens/Swap';
 import Home from './src/screens/Home';
 import Compose from './src/screens/Compose';
 import Settings from './src/screens/Settings';
 
 type Phase = 'boot' | 'onboarding' | 'locked' | 'main';
-type Tab = 'home' | 'mint' | 'compose' | 'settings';
+type Tab = 'home' | 'mint' | 'swap' | 'compose' | 'settings';
 
 function AppInner() {
   const [phase, setPhase] = useState<Phase>('boot');
@@ -298,6 +299,7 @@ function AppInner() {
           onMinted={() => void refreshNames(wallet, preset)}
         />
       )}
+      {tab === 'swap' && <Swap lang={lang} wallet={wallet} preset={preset} />}
       {tab === 'settings' && (
         <Settings
           lang={lang}
@@ -330,6 +332,7 @@ function AppInner() {
           [
             ['home', t.tabHome],
             ['mint', t.tabMint],
+            ['swap', t.tabSwap],
             ['settings', t.tabSettings],
           ] as [Tab, string][]
         ).map(([t, label]) => (
