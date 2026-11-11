@@ -6,8 +6,10 @@ import { styles } from '../theme';
 import { postAction } from '../lib/actions';
 import type { Session } from '../lib/api';
 import type { NetworkPreset } from '../config';
+import { STRINGS, type Lang } from '../i18n';
 
 interface Props {
+  lang: Lang;
   wallet: ethers.HDNodeWallet;
   preset: NetworkPreset;
   session: Session;
@@ -15,7 +17,8 @@ interface Props {
   onDone: () => void;
 }
 
-export default function Compose({ wallet, preset, session, senderId, onDone }: Props) {
+export default function Compose({ lang, wallet, preset, session, senderId, onDone }: Props) {
+  const t = STRINGS[lang];
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -25,10 +28,10 @@ export default function Compose({ wallet, preset, session, senderId, onDone }: P
     setBusy(true);
     try {
       await postAction(wallet, preset, session, senderId, body);
-      Alert.alert('投稿しました', 'バリデータの確定後、タイムラインに表示されます');
+      Alert.alert(t.postedTitle, t.postedMsg);
       onDone();
     } catch (e) {
-      Alert.alert('投稿に失敗しました', e instanceof Error ? e.message : String(e));
+      Alert.alert(t.postFailedTitle, e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
@@ -36,25 +39,22 @@ export default function Compose({ wallet, preset, session, senderId, onDone }: P
 
   return (
     <View style={[styles.root, styles.content]}>
-      <Text style={styles.title}>投稿する</Text>
-      <Text style={styles.sub}>
-        署名だけを送ります（ガス代はかかりません）。投稿コスト 5,000 CAW＋バリデータ tip が、
-        このネットワークへの預け分から引かれます。
-      </Text>
+      <Text style={styles.title}>{t.postTitle}</Text>
+      <Text style={styles.sub}>{t.postNote}</Text>
       <TextInput
         style={[styles.input, { minHeight: 140, textAlignVertical: 'top' }]}
         multiline
         autoFocus
         maxLength={2000}
-        placeholder="いまどうしてる？"
+        placeholder={t.postPlaceholder}
         value={text}
         onChangeText={setText}
       />
       <TouchableOpacity style={styles.button} onPress={submit} disabled={busy || !text.trim()}>
-        <Text style={styles.buttonText}>{busy ? '送信中…' : '投稿する'}</Text>
+        <Text style={styles.buttonText}>{busy ? t.sending : t.postBtn}</Text>
       </TouchableOpacity>
       <TouchableOpacity onPress={onDone}>
-        <Text style={styles.sub}>← タイムラインへもどる</Text>
+        <Text style={styles.sub}>{t.backToTimeline}</Text>
       </TouchableOpacity>
     </View>
   );

@@ -15,8 +15,10 @@ import { getFeed, type CawItem, type Session } from '../lib/api';
 import { likeAction, recawAction } from '../lib/actions';
 import { getBalances, type OwnedName } from '../lib/mint';
 import type { NetworkPreset } from '../config';
+import { STRINGS, fmt, type Lang } from '../i18n';
 
 interface Props {
+  lang: Lang;
   wallet: ethers.HDNodeWallet | null;
   preset: NetworkPreset;
   session: Session | null;
@@ -26,15 +28,17 @@ interface Props {
   onCompose: () => void;
 }
 
-function timeLabel(iso: string): string {
+function timeLabel(iso: string, lang: Lang): string {
+  const t = STRINGS[lang];
   const d = new Date(iso);
   const diffMin = Math.max(0, Math.round((Date.now() - d.getTime()) / 60000));
-  if (diffMin < 60) return `${diffMin}分前`;
-  if (diffMin < 60 * 24) return `${Math.floor(diffMin / 60)}時間前`;
+  if (diffMin < 60) return fmt(t.minAgo, { n: diffMin });
+  if (diffMin < 60 * 24) return fmt(t.hourAgo, { n: Math.floor(diffMin / 60) });
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
-export default function Home({ wallet, preset, session, senderId, names, onGoMint, onCompose }: Props) {
+export default function Home({ lang, wallet, preset, session, senderId, names, onGoMint, onCompose }: Props) {
+  const t = STRINGS[lang];
   const [balances, setBalances] = useState<{ eth: bigint; caw: bigint | null } | null>(null);
 
   useEffect(() => {
@@ -77,15 +81,15 @@ export default function Home({ wallet, preset, session, senderId, names, onGoMin
 
   const act = async (fn: () => Promise<unknown>, okMsg: string) => {
     if (!wallet || !session || senderId == null) {
-      Alert.alert('名前が必要です', '投稿やいいねには、この接続先で取得した CAW ネームが必要です');
+      Alert.alert(t.nameRequiredTitle, t.nameRequiredMsgAct);
       return;
     }
     try {
       await fn();
-      Alert.alert('送信しました', okMsg);
+      Alert.alert(t.sentTitle, okMsg);
       load(undefined, true);
     } catch (e) {
-      Alert.alert('失敗しました', e instanceof Error ? e.message : String(e));
+      Alert.alert(t.failedTitle, e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -93,7 +97,7 @@ export default function Home({ wallet, preset, session, senderId, names, onGoMin
     <View style={styles.card}>
       <Text style={[styles.body, { fontWeight: '700' }]}>
         {item.user.username ?? item.user.address.slice(0, 10) + '…'}
-        <Text style={{ color: colors.faint, fontWeight: '400' }}> ・ {timeLabel(item.timestamp)}</Text>
+        <Text style={{ color: colors.faint, fontWeight: '400' }}> ・ {timeLabel(item.timestamp, lang)}</Text>
       </Text>
       <Text style={styles.body}>{item.content}</Text>
       <View style={{ flexDirection: 'row', gap: 22, marginTop: 4 }}>
@@ -101,7 +105,7 @@ export default function Home({ wallet, preset, session, senderId, names, onGoMin
           onPress={() =>
             act(
               () => likeAction(wallet!, preset, session!, senderId!, item, !!item.hasLiked),
-              item.hasLiked ? 'いいねを取り消しました' : 'いいねしました',
+              item.hasLiked ? t.unliked : t.liked,
             )
           }
         >
@@ -110,7 +114,7 @@ export default function Home({ wallet, preset, session, senderId, names, onGoMin
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={() => act(() => recawAction(wallet!, preset, session!, senderId!, item), 'リコーしました')}
+          onPress={() => act(() => recawAction(wallet!, preset, session!, senderId!, item), t.recawed)}
         >
           <Text style={{ color: item.hasRecawed ? colors.accent : colors.sub, fontSize: 13 }}>
             ↻ {item.recawCount}
@@ -126,9 +130,9 @@ export default function Home({ wallet, preset, session, senderId, names, onGoMin
       <View style={styles.root}>
         <View style={styles.content}>
           <View style={styles.card}>
-            <Text style={styles.title}>自分の名前</Text>
+            <Text style={styles.title}>{t.myNames}</Text>
             {names.length === 0 ? (
-              <Text style={styles.sub}>まだ名前を持っていません。</Text>
+              <Text style={styles.sub}>{t.noNamesYet}</Text>
             ) : (
               names.map((n) => (
                 <Text key={n.tokenId} style={styles.body}>
@@ -138,23 +142,19 @@ export default function Home({ wallet, preset, session, senderId, names, onGoMin
               ))
             )}
             <Text style={styles.sub}>
-              残高：
+              {t.balanceLabel}：
               {balances
                 ? `${Number(ethers.formatEther(balances.eth)).toFixed(5)} ETH${balances.caw != null ? ` / ${Number(ethers.formatUnits(balances.caw, 18)).toLocaleString('ja-JP', { maximumFractionDigits: 0 })} CAW` : ''}`
                 : '…'}
             </Text>
             <TouchableOpacity style={styles.button} onPress={onGoMint}>
-              <Text style={styles.buttonText}>名前を取る</Text>
+              <Text style={styles.buttonText}>{t.goMint}</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.card}>
-            <Text style={styles.title}>タイムライン</Text>
-            <Text style={styles.sub}>
-              ノードを探しています。コミュニティのノードが立ち上がると、自動で接続してここにタイムラインが表示されます（操作は不要です）。
-            </Text>
-            <Text style={styles.sub}>
-              名前の取得はノードなしで今すぐできます。
-            </Text>
+            <Text style={styles.title}>{t.timeline}</Text>
+            <Text style={styles.sub}>{t.nodeSearching}</Text>
+            <Text style={styles.sub}>{t.mintNoNodeNote}</Text>
           </View>
         </View>
       </View>
@@ -168,9 +168,9 @@ export default function Home({ wallet, preset, session, senderId, names, onGoMin
       ) : error ? (
         <View style={styles.content}>
           <View style={styles.card}>
-            <Text style={styles.title}>タイムラインを読めませんでした</Text>
+            <Text style={styles.title}>{t.feedErrorTitle}</Text>
             <Text style={styles.sub}>{error}</Text>
-            <Text style={styles.sub}>ノード URL の設定と、ノードの起動状態を確認してください。</Text>
+            <Text style={styles.sub}>{t.feedErrorHint}</Text>
           </View>
         </View>
       ) : (
@@ -192,7 +192,7 @@ export default function Home({ wallet, preset, session, senderId, names, onGoMin
           onEndReachedThreshold={0.4}
           ListEmptyComponent={
             <Text style={[styles.sub, { textAlign: 'center', marginTop: 32 }]}>
-              まだ投稿がありません
+              {t.feedEmpty}
             </Text>
           }
         />

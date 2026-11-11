@@ -4,6 +4,9 @@ import { ActivityIndicator, Alert, Image, Text, TouchableOpacity, View } from 'r
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ethers } from 'ethers';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { STRINGS, detectLang, type Lang } from './src/i18n';
 
 import {
   MAINNET_PRESET,
@@ -33,8 +36,11 @@ import Settings from './src/screens/Settings';
 type Phase = 'boot' | 'onboarding' | 'locked' | 'main';
 type Tab = 'home' | 'mint' | 'compose' | 'settings';
 
-export default function App() {
+function AppInner() {
   const [phase, setPhase] = useState<Phase>('boot');
+  const [lang, setLang] = useState<Lang>('ja');
+  const insets = useSafeAreaInsets();
+  const t = STRINGS[lang];
   const [tab, setTab] = useState<Tab>('home');
   const [preset, setPreset] = useState<NetworkPreset>(MAINNET_PRESET);
   const [names, setNames] = useState<OwnedName[]>([]);
@@ -43,6 +49,8 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
 
   const senderId = session?.authorizedTokenIds[0] ?? null;
+  const langRef = React.useRef(lang);
+  langRef.current = lang;
 
   const connect = useCallback(
     async (w: ethers.HDNodeWallet, url: string, p: NetworkPreset) => {
@@ -62,7 +70,7 @@ export default function App() {
       } catch (e) {
         setSession(null);
         if (e instanceof IndexingError) {
-          Alert.alert('ノードが索引中です', e.message);
+          Alert.alert(STRINGS[langRef.current].indexingTitle, e.message);
         }
         // No name on this deployment, or node unreachable: the app still
         // opens read-only; posting prompts for a name.
@@ -110,10 +118,16 @@ export default function App() {
 
   useEffect(() => {
     (async () => {
-      const [savedPresetId, savedUrl] = await Promise.all([
+      const [savedPresetId, savedUrl, savedLang] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.presetId),
         AsyncStorage.getItem(STORAGE_KEYS.nodeUrl),
+        AsyncStorage.getItem(STORAGE_KEYS.lang),
       ]);
+      setLang(
+        savedLang === 'ja' || savedLang === 'en' || savedLang === 'zh' || savedLang === 'ko' || savedLang === 'es'
+          ? savedLang
+          : detectLang(),
+      );
       const p = PRESETS.find((x) => x.id === savedPresetId) ?? MAINNET_PRESET;
       setPreset(p);
       const url = savedUrl ?? '';
@@ -125,7 +139,7 @@ export default function App() {
 
   const unlock = useCallback(async () => {
     const auth = await LocalAuthentication.authenticateAsync({
-      promptMessage: 'CAW をひらく',
+      promptMessage: t.lockPrompt,
     });
     if (!auth.success) return;
     try {
@@ -135,9 +149,9 @@ export default function App() {
       void refreshNames(w, preset);
       await resolveAndConnect(w, preset);
     } catch (e) {
-      Alert.alert('ウォレットを開けませんでした', e instanceof Error ? e.message : String(e));
+      Alert.alert(t.walletOpenFailed, e instanceof Error ? e.message : String(e));
     }
-  }, [resolveAndConnect, refreshNames, preset]);
+  }, [resolveAndConnect, refreshNames, preset, t]);
 
   useEffect(() => {
     if (phase === 'locked') unlock();
@@ -175,6 +189,11 @@ export default function App() {
     [wallet, refreshNames, resolveAndConnect],
   );
 
+  const onLangChange = useCallback(async (l: Lang) => {
+    setLang(l);
+    await AsyncStorage.setItem(STORAGE_KEYS.lang, l);
+  }, []);
+
   const primaryName = names[0] ?? null;
 
   const onNodeUrlChange = useCallback(
@@ -200,7 +219,7 @@ export default function App() {
     return (
       <View style={styles.root}>
         <StatusBar style="dark" />
-        <Onboarding onReady={onOnboardingReady} />
+        <Onboarding lang={lang} onReady={onOnboardingReady} />
       </View>
     );
   }
@@ -212,7 +231,7 @@ export default function App() {
         <Text style={styles.h1}>CAW</Text>
         <Text style={styles.sub}>— Ethereum Edition</Text>
         <TouchableOpacity style={[styles.button, { paddingHorizontal: 32 }]} onPress={unlock}>
-          <Text style={styles.buttonText}>生体認証でひらく</Text>
+          <Text style={styles.buttonText}>{t.unlockBtn}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -226,7 +245,7 @@ export default function App() {
           flexDirection: 'row',
           alignItems: 'baseline',
           paddingHorizontal: 16,
-          paddingTop: 18,
+          paddingTop: insets.top + 12,
           paddingBottom: 6,
         }}
       >
@@ -238,12 +257,13 @@ export default function App() {
         <Text style={{ fontSize: 11, color: colors.sub, marginLeft: 6 }}>Ethereum Edition</Text>
         <View style={{ flex: 1 }} />
         <Text style={{ fontSize: 12, fontWeight: primaryName ? '700' : '400', color: primaryName ? colors.accentDark : colors.faint }}>
-          {primaryName ? `@${primaryName.name}` : session ? '名前なし（閲覧のみ）' : 'ノード待機中'}
+          {primaryName ? `@${primaryName.name}` : session ? t.headerNoName : t.headerWaiting}
         </Text>
       </View>
 
       {tab === 'home' && (
         <Home
+          lang={lang}
           wallet={wallet}
           preset={preset}
           session={session}
@@ -252,10 +272,7 @@ export default function App() {
           onGoMint={() => setTab('mint')}
           onCompose={() => {
             if (!session || senderId == null) {
-              Alert.alert(
-                '名前が必要です',
-                '投稿には、この接続先で取得した CAW ネームが必要です',
-              );
+              Alert.alert(t.nameRequiredTitle, t.nameRequiredMsgPost);
               return;
             }
             setTab('compose');
@@ -264,6 +281,7 @@ export default function App() {
       )}
       {tab === 'compose' && session && senderId != null && (
         <Compose
+          lang={lang}
           wallet={wallet}
           preset={preset}
           session={session}
@@ -273,6 +291,7 @@ export default function App() {
       )}
       {tab === 'mint' && (
         <Mint
+          lang={lang}
           wallet={wallet}
           preset={preset}
           names={names}
@@ -281,6 +300,8 @@ export default function App() {
       )}
       {tab === 'settings' && (
         <Settings
+          lang={lang}
+          onLangChange={onLangChange}
           preset={preset}
           nodeUrl={nodeUrl}
           senderName={primaryName?.name ?? null}
@@ -301,14 +322,15 @@ export default function App() {
           borderTopWidth: 1,
           borderTopColor: colors.line,
           backgroundColor: colors.card,
-          paddingVertical: 8,
+          paddingTop: 8,
+          paddingBottom: Math.max(insets.bottom, 8) + 4,
         }}
       >
         {(
           [
-            ['home', 'ホーム'],
-            ['mint', '名前を取る'],
-            ['settings', '設定'],
+            ['home', t.tabHome],
+            ['mint', t.tabMint],
+            ['settings', t.tabSettings],
           ] as [Tab, string][]
         ).map(([t, label]) => (
           <TouchableOpacity key={t} style={{ flex: 1, alignItems: 'center' }} onPress={() => setTab(t)}>
@@ -319,5 +341,13 @@ export default function App() {
         ))}
       </View>
     </View>
+  );
+}
+
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AppInner />
+    </SafeAreaProvider>
   );
 }

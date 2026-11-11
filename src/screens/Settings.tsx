@@ -6,8 +6,11 @@ import * as Clipboard from 'expo-clipboard';
 import { colors, styles } from '../theme';
 import { deleteWallet, revealPhrase, storedAddress } from '../lib/wallet';
 import { PRESETS, type NetworkPreset } from '../config';
+import { LANGS, STRINGS, fmt, type Lang } from '../i18n';
 
 interface Props {
+  lang: Lang;
+  onLangChange: (l: Lang) => void;
   preset: NetworkPreset;
   nodeUrl: string;
   senderName: string | null;
@@ -23,6 +26,8 @@ async function biometricGate(reason: string): Promise<boolean> {
 }
 
 export default function Settings({
+  lang,
+  onLangChange,
   preset,
   nodeUrl,
   senderName,
@@ -31,6 +36,7 @@ export default function Settings({
   onNodeUrlChange,
   onWalletDeleted,
 }: Props) {
+  const t = STRINGS[lang];
   const [urlText, setUrlText] = useState(nodeUrl);
   const [address, setAddress] = useState<string | null>(null);
   const [phrase, setPhrase] = useState<string | null>(null);
@@ -42,20 +48,20 @@ export default function Settings({
 
   const saveUrl = () => {
     onNodeUrlChange(urlText.trim());
-    Alert.alert('保存しました', 'ノード URL を更新しました。再度ひらくと新しい接続先で認証します');
+    Alert.alert(t.savedTitle, t.savedMsg);
   };
 
   const showPhrase = async () => {
-    if (!(await biometricGate('リカバリーフレーズを表示'))) return;
+    if (!(await biometricGate(t.phrasePrompt))) return;
     setPhrase(await revealPhrase());
   };
 
   const wipe = async () => {
-    if (!(await biometricGate('ウォレットを削除'))) return;
-    Alert.alert('本当に削除しますか？', 'フレーズを控えていない場合、二度と復元できません', [
-      { text: 'やめる', style: 'cancel' },
+    if (!(await biometricGate(t.deletePrompt))) return;
+    Alert.alert(t.deleteTitle, t.deleteMsg, [
+      { text: t.cancel, style: 'cancel' },
       {
-        text: '削除する',
+        text: t.deleteBtn,
         style: 'destructive',
         onPress: async () => {
           await deleteWallet();
@@ -68,7 +74,7 @@ export default function Settings({
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
       <View style={styles.card}>
-        <Text style={styles.title}>接続先</Text>
+        <Text style={styles.title}>{t.connection}</Text>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           {PRESETS.map((p) => (
             <TouchableOpacity
@@ -77,15 +83,13 @@ export default function Settings({
               onPress={() => onPresetChange(p)}
             >
               <Text style={p.id === preset.id ? styles.buttonText : styles.ghostText}>
-                {p.isTestnet ? 'テストネット' : 'メインネット'}
+                {p.isTestnet ? t.testnet : t.mainnet}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
         <Text style={styles.sub}>{preset.label}</Text>
-        <Text style={styles.sub}>
-          ノード URL（自前ノードの公開 URL。開発中はトンネル URL が入ります）
-        </Text>
+        <Text style={styles.sub}>{t.nodeUrlLabel}</Text>
         <TextInput
           style={styles.input}
           autoCapitalize="none"
@@ -95,23 +99,20 @@ export default function Settings({
           onChangeText={setUrlText}
         />
         <TouchableOpacity style={styles.button} onPress={saveUrl}>
-          <Text style={styles.buttonText}>保存する</Text>
+          <Text style={styles.buttonText}>{t.saveBtn}</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.title}>自分の名前</Text>
+        <Text style={styles.title}>{t.myName}</Text>
         {senderId != null ? (
           <Text style={styles.body}>
             {senderName ?? `#${senderId}`}（tokenId {senderId}）
           </Text>
         ) : (
-          <Text style={styles.sub}>
-            この接続先では、まだ名前を持っていません。「名前を取る」タブから取得できます
-            （ノードは不要です）。
-          </Text>
+          <Text style={styles.sub}>{t.noNameSettings}</Text>
         )}
-        <Text style={styles.sub}>ウォレットアドレス</Text>
+        <Text style={styles.sub}>{t.walletAddress}</Text>
         <Text selectable style={styles.body}>
           {address ?? '…'}
         </Text>
@@ -120,29 +121,44 @@ export default function Settings({
             if (address) await Clipboard.setStringAsync(address);
           }}
         >
-          <Text style={{ color: colors.accent, fontSize: 13 }}>アドレスをコピー</Text>
+          <Text style={{ color: colors.accent, fontSize: 13 }}>{t.copyAddress}</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.title}>リカバリーフレーズ</Text>
+        <Text style={styles.title}>{t.phraseTitle}</Text>
         {phrase ? (
           <Text selectable style={styles.body}>
             {phrase}
           </Text>
         ) : (
           <TouchableOpacity onPress={showPhrase}>
-            <Text style={{ color: colors.accent, fontSize: 14 }}>生体認証して表示する</Text>
+            <Text style={{ color: colors.accent, fontSize: 14 }}>{t.showPhrase}</Text>
           </TouchableOpacity>
         )}
-        <Text style={styles.sub}>他人に見せないでください。運営がフレーズを聞くことはありません。</Text>
+        <Text style={styles.sub}>{t.phraseWarning}</Text>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.title}>{t.language}</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          {LANGS.map((l) => (
+            <TouchableOpacity
+              key={l.id}
+              style={l.id === lang ? styles.button : styles.ghostButton}
+              onPress={() => onLangChange(l.id)}
+            >
+              <Text style={l.id === lang ? styles.buttonText : styles.ghostText}>{l.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
       <TouchableOpacity onPress={wipe} style={{ alignItems: 'center', paddingVertical: 8 }}>
-        <Text style={styles.dangerText}>この端末のウォレットを削除</Text>
+        <Text style={styles.dangerText}>{t.deleteWallet}</Text>
       </TouchableOpacity>
       <Text style={[styles.sub, { textAlign: 'center' }]}>
-        CAW — Ethereum Edition v0.1.4 / 独立デプロイ版（公式 CAW とは無関係です）
+        {fmt(t.versionFooter, { v: 'v0.1.5' })}
       </Text>
     </ScrollView>
   );

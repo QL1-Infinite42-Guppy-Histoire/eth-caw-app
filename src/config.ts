@@ -82,6 +82,7 @@ export const STORAGE_KEYS = {
   nodeUrl: 'ethcaw.nodeUrl',
   presetId: 'ethcaw.presetId',
   session: 'ethcaw.session',
+  lang: 'ethcaw.lang',
 } as const;
 
 /** EIP-712 domain for CAW actions (name/version fixed by the protocol). */
