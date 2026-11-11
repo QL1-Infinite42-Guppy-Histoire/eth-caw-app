@@ -43,6 +43,12 @@ type Phase =
 
 const DEPOSIT = ethers.parseUnits(MINT_DEPOSIT_CAW, 18);
 
+// Name minting is closed in the app for maintenance (since v0.1.10, period
+// undecided). NOTE: this closes only the app's entrance — the contract's
+// mint function is permissionless and cannot be halted by anyone, so the
+// wording shown to users must never claim issuance itself is stopped.
+const MINT_MAINTENANCE = true;
+
 function fmtCaw(v: bigint): string {
   const n = Number(ethers.formatUnits(v, 18));
   return n.toLocaleString('ja-JP', { maximumFractionDigits: 0 });
@@ -129,6 +135,29 @@ export default function Mint({ lang, wallet, preset, names, onMinted }: Props) {
         <View style={styles.card}>
           <Text style={styles.title}>{t.getNameTitle}</Text>
           <Text style={styles.sub}>{fmt(t.mintUnsupported, { label: preset.label })}</Text>
+        </View>
+      </ScrollView>
+    );
+  }
+
+  if (MINT_MAINTENANCE) {
+    return (
+      <ScrollView style={styles.root} contentContainerStyle={styles.content}>
+        <View style={styles.card}>
+          <Text style={styles.title}>{t.myNames}</Text>
+          {names.length === 0 ? (
+            <Text style={styles.sub}>{t.noNamesYetMint}</Text>
+          ) : (
+            names.map((n) => <NameCard key={n.tokenId} name={n} lang={lang} />)
+          )}
+          <Text style={styles.sub}>
+            {t.balanceLabel}：{balances ? `${Number(ethers.formatEther(balances.eth)).toFixed(5)} ETH` : '…'}
+            {balances?.caw != null ? ` / ${fmtCaw(balances.caw)} CAW` : ''}
+          </Text>
+        </View>
+        <View style={styles.card}>
+          <Text style={styles.title}>🛠 {t.mintMaintTitle}</Text>
+          <Text style={styles.sub}>{t.mintMaintBody}</Text>
         </View>
       </ScrollView>
     );

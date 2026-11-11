@@ -62,6 +62,8 @@ const ja = {
   minAgo: '{n}分前',
   hourAgo: '{n}時間前',
   getNameTitle: '名前を取る',
+  mintMaintTitle: '名前の発行はメンテナンス中です',
+  mintMaintBody: '現在、アプリからの名前発行をお休みしています（再開時期は未定です）。お持ちの名前・残高・スワップは通常どおり使えます。',
   mintUnsupported:
     'この接続先（{label}）では、アプリ内ミントは準備中です。メインネットに切り替えると使えます。',
   mintIntro:
@@ -194,6 +196,8 @@ const en: Dict = {
   minAgo: '{n}m ago',
   hourAgo: '{n}h ago',
   getNameTitle: 'Get a name',
+  mintMaintTitle: 'Name minting is under maintenance',
+  mintMaintBody: 'Minting new names from this app is paused for now (no restart date yet). Your existing names, balances and the swap work as usual.',
   mintUnsupported:
     'In-app minting is not ready on this network ({label}). Switch to mainnet to use it.',
   mintIntro:
@@ -323,6 +327,8 @@ const zh: Dict = {
   minAgo: '{n}分钟前',
   hourAgo: '{n}小时前',
   getNameTitle: '获取名字',
+  mintMaintTitle: '名称发行维护中',
+  mintMaintBody: '目前应用内的名称发行已暂停（恢复时间未定）。您已有的名称、余额和兑换功能可正常使用。',
   mintUnsupported: '此网络（{label}）尚未支持应用内铸造。切换到主网即可使用。',
   mintIntro: '名字将作为 NFT 在以太坊上发行。无需节点，应用会从您的钱包直接与合约交互。',
   namePlaceholder: '想要的名字（小写字母、数字、_）',
@@ -446,6 +452,8 @@ const ko: Dict = {
   minAgo: '{n}분 전',
   hourAgo: '{n}시간 전',
   getNameTitle: '이름 받기',
+  mintMaintTitle: '이름 발행 점검 중',
+  mintMaintBody: '현재 앱에서의 이름 발행을 쉬고 있습니다(재개 시기 미정). 보유한 이름·잔액·스왑은 평소대로 사용할 수 있습니다.',
   mintUnsupported: '이 네트워크({label})에서는 앱 내 민팅이 준비 중입니다. 메인넷으로 전환하면 사용할 수 있습니다.',
   mintIntro: '이름은 이더리움 위의 NFT로 발행됩니다. 노드는 필요 없으며, 지갑에서 직접 절차를 진행합니다.',
   namePlaceholder: '원하는 이름(영소문자·숫자·_)',
@@ -569,6 +577,8 @@ const es: Dict = {
   minAgo: 'hace {n} min',
   hourAgo: 'hace {n} h',
   getNameTitle: 'Obtener un nombre',
+  mintMaintTitle: 'Emisión de nombres en mantenimiento',
+  mintMaintBody: 'La emisión de nombres desde la app está en pausa por ahora (sin fecha de reanudación). Tus nombres, saldos y el intercambio funcionan como siempre.',
   mintUnsupported:
     'La acuñación en la app aún no está lista en esta red ({label}). Cambia a mainnet para usarla.',
   mintIntro:
