@@ -7,6 +7,8 @@ import { colors, styles } from '../theme';
 import { deleteWallet, revealPhrase, storedAddress } from '../lib/wallet';
 import { PRESETS, type NetworkPreset } from '../config';
 import { LANGS, STRINGS, fmt, type Lang } from '../i18n';
+import type { OwnedName } from '../lib/mint';
+import NameCard from '../components/NameCard';
 
 interface Props {
   lang: Lang;
@@ -15,6 +17,7 @@ interface Props {
   nodeUrl: string;
   senderName: string | null;
   senderId: number | null;
+  names: OwnedName[];
   onPresetChange: (p: NetworkPreset) => void;
   onNodeUrlChange: (url: string) => void;
   onWalletDeleted: () => void;
@@ -32,6 +35,7 @@ export default function Settings({
   nodeUrl,
   senderName,
   senderId,
+  names,
   onPresetChange,
   onNodeUrlChange,
   onWalletDeleted,
@@ -105,7 +109,9 @@ export default function Settings({
 
       <View style={styles.card}>
         <Text style={styles.title}>{t.myName}</Text>
-        {senderId != null ? (
+        {names.length > 0 ? (
+          names.map((n) => <NameCard key={n.tokenId} name={n} lang={lang} />)
+        ) : senderId != null ? (
           <Text style={styles.body}>
             {senderName ?? `#${senderId}`}（tokenId {senderId}）
           </Text>

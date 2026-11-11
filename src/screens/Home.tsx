@@ -16,6 +16,7 @@ import { likeAction, recawAction } from '../lib/actions';
 import { getBalances, type OwnedName } from '../lib/mint';
 import type { NetworkPreset } from '../config';
 import { STRINGS, fmt, type Lang } from '../i18n';
+import NameCard from '../components/NameCard';
 
 interface Props {
   lang: Lang;
@@ -134,12 +135,7 @@ export default function Home({ lang, wallet, preset, session, senderId, names, o
             {names.length === 0 ? (
               <Text style={styles.sub}>{t.noNamesYet}</Text>
             ) : (
-              names.map((n) => (
-                <Text key={n.tokenId} style={styles.body}>
-                  @{n.name}
-                  <Text style={{ color: colors.faint }}> （tokenId {n.tokenId}）</Text>
-                </Text>
-              ))
+              names.map((n) => <NameCard key={n.tokenId} name={n} lang={lang} />)
             )}
             <Text style={styles.sub}>
               {t.balanceLabel}：

@@ -18,6 +18,8 @@ export interface NetworkPreset {
   cawActionsL2: string;
   /** CawProfile (name NFT) on L1. */
   cawProfileL1: string;
+  /** CawProfileLedger on the L2 (per-name deposited CAW balances). */
+  cawProfileLedgerL2: string;
   /** CAW token on L1 ('' when minting is not wired for this preset). */
   cawTokenL1: string;
   /** CawProfileMinter on L1 (name minting). */
@@ -39,6 +41,7 @@ export const TESTNET_PRESET: NetworkPreset = {
   l2RpcUrl: 'https://sepolia.base.org',
   cawActionsL2: '0x801d3df0C675058AC363af0b8DDb5B52147D90d4',
   cawProfileL1: '0xbbaA66afb60557e7f1D1517A0494F21C31c51EDE',
+  cawProfileLedgerL2: '',
   cawTokenL1: '',
   cawProfileMinterL1: '',
   cawProfileQuoterL1: '',
@@ -58,6 +61,7 @@ export const MAINNET_PRESET: NetworkPreset = {
   l2RpcUrl: 'https://mainnet.base.org',
   cawActionsL2: '0xf4dFCf0EF472E8aaD3783479051f61EC574C6A8E',
   cawProfileL1: '0xa3700808e1c62E989fbf5CE15312d79d1475bDb4',
+  cawProfileLedgerL2: '0x206c99Ee5CFF8b5D761926ff224D867E1fBC7aaa',
   cawTokenL1: '0xf3b9569F82B18aEf890De263B84189bd33EBe452',
   cawProfileMinterL1: '0xf219DA7aF9249322D4E982dc49FcE6251bCE0d22',
   cawProfileQuoterL1: '0x4baBf4136707d6f4C096ea447Ec3285Cc2AF7235',

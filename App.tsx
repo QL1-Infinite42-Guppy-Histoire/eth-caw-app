@@ -309,6 +309,7 @@ function AppInner() {
           nodeUrl={nodeUrl}
           senderName={primaryName?.name ?? null}
           senderId={primaryName?.tokenId ?? senderId}
+          names={names}
           onPresetChange={onPresetChange}
           onNodeUrlChange={onNodeUrlChange}
           onWalletDeleted={() => {

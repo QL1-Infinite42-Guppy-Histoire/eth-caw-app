@@ -11,6 +11,7 @@ import { ethers } from 'ethers';
 
 import { colors, styles } from '../theme';
 import { STRINGS, fmt, type Lang } from '../i18n';
+import NameCard from '../components/NameCard';
 import { MINT_DEPOSIT_CAW, type NetworkPreset } from '../config';
 import {
   checkName,
@@ -163,12 +164,7 @@ export default function Mint({ lang, wallet, preset, names, onMinted }: Props) {
         {names.length === 0 ? (
           <Text style={styles.sub}>{t.noNamesYetMint}</Text>
         ) : (
-          names.map((n) => (
-            <Text key={n.tokenId} style={styles.body}>
-              @{n.name}
-              <Text style={{ color: colors.faint }}> （tokenId {n.tokenId}）</Text>
-            </Text>
-          ))
+          names.map((n) => <NameCard key={n.tokenId} name={n} lang={lang} />)
         )}
         <Text style={styles.sub}>
           {t.balanceLabel}：{balances ? `${Number(ethers.formatEther(balances.eth)).toFixed(5)} ETH` : '…'}

@@ -36,7 +36,13 @@ const QUOTER_ABI = [
 export interface OwnedName {
   tokenId: number;
   name: string;
+  /** Decoded SVG artwork from the NFT metadata, when present. */
+  imageSvg: string | null;
+  /** CAW deposited under this name on the L2 ledger (null when unread). */
+  depositCaw: bigint | null;
 }
+
+const LEDGER_ABI = ['function cawBalanceOf(uint32) view returns (uint256)'];
 
 export interface NameCheck {
   valid: boolean;
@@ -87,14 +93,21 @@ function b64ToAscii(b64: string): string {
   return out;
 }
 
-function nameFromTokenUri(uri: string): string | null {
+function metaFromTokenUri(uri: string): { name: string | null; imageSvg: string | null } {
   try {
     const b64 = uri.split(',')[1];
-    if (!b64) return null;
+    if (!b64) return { name: null, imageSvg: null };
     const json = JSON.parse(b64ToAscii(b64));
-    return typeof json.name === 'string' ? json.name : null;
+    let imageSvg: string | null = null;
+    if (typeof json.image === 'string' && json.image.startsWith('data:image/svg+xml;base64,')) {
+      imageSvg = b64ToAscii(json.image.slice('data:image/svg+xml;base64,'.length));
+    }
+    return {
+      name: typeof json.name === 'string' ? json.name : null,
+      imageSvg,
+    };
   } catch {
-    return null;
+    return { name: null, imageSvg: null };
   }
 }
 
@@ -123,16 +136,40 @@ export async function fetchOwnedNames(
       continue;
     }
     if (owner.toLowerCase() !== wallet.address.toLowerCase()) continue;
-    let name: string | null = null;
+    let meta = { name: null as string | null, imageSvg: null as string | null };
     try {
-      name = nameFromTokenUri(await profile.tokenURI(id));
+      meta = metaFromTokenUri(await profile.tokenURI(id));
     } catch {
-      name = null;
+      /* keep nulls */
     }
-    found.push({ tokenId: Number(id), name: name ?? `#${id.toString()}` });
+    found.push({
+      tokenId: Number(id),
+      name: meta.name ?? `#${id.toString()}`,
+      imageSvg: meta.imageSvg,
+      depositCaw: null,
+    });
     if (BigInt(found.length) >= balance) break;
   }
-  return found.reverse();
+  const ordered = found.reverse();
+  // Per-name deposited balances live on the L2 ledger (Base).
+  if (preset.cawProfileLedgerL2 && ordered.length > 0) {
+    try {
+      const l2 = new ethers.JsonRpcProvider(preset.l2RpcUrl);
+      const ledger = new ethers.Contract(preset.cawProfileLedgerL2, LEDGER_ABI, l2);
+      await Promise.all(
+        ordered.map(async (n) => {
+          try {
+            n.depositCaw = await ledger.cawBalanceOf(n.tokenId);
+          } catch {
+            n.depositCaw = null;
+          }
+        }),
+      );
+    } catch {
+      /* deposits stay null */
+    }
+  }
+  return ordered;
 }
 
 export async function checkName(preset: NetworkPreset, name: string): Promise<NameCheck> {
