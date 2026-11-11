@@ -5,13 +5,14 @@ import * as Clipboard from 'expo-clipboard';
 
 import { colors, styles } from '../theme';
 import { deleteWallet, revealPhrase, storedAddress } from '../lib/wallet';
-import type { NetworkPreset } from '../config';
+import { PRESETS, type NetworkPreset } from '../config';
 
 interface Props {
   preset: NetworkPreset;
   nodeUrl: string;
   senderName: string | null;
   senderId: number | null;
+  onPresetChange: (p: NetworkPreset) => void;
   onNodeUrlChange: (url: string) => void;
   onWalletDeleted: () => void;
 }
@@ -26,6 +27,7 @@ export default function Settings({
   nodeUrl,
   senderName,
   senderId,
+  onPresetChange,
   onNodeUrlChange,
   onWalletDeleted,
 }: Props) {
@@ -67,6 +69,19 @@ export default function Settings({
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
       <View style={styles.card}>
         <Text style={styles.title}>接続先</Text>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {PRESETS.map((p) => (
+            <TouchableOpacity
+              key={p.id}
+              style={p.id === preset.id ? styles.button : styles.ghostButton}
+              onPress={() => onPresetChange(p)}
+            >
+              <Text style={p.id === preset.id ? styles.buttonText : styles.ghostText}>
+                {p.isTestnet ? 'テストネット' : 'メインネット'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
         <Text style={styles.sub}>{preset.label}</Text>
         <Text style={styles.sub}>
           ノード URL（自前ノードの公開 URL。開発中はトンネル URL が入ります）
@@ -92,8 +107,8 @@ export default function Settings({
           </Text>
         ) : (
           <Text style={styles.sub}>
-            この接続先では、まだ名前を持っていません。名前の取得は今後の版で対応します
-            （テストネットでは名前 guppytest が実証用に発行済みです）。
+            この接続先では、まだ名前を持っていません。「名前を取る」タブから取得できます
+            （ノードは不要です）。
           </Text>
         )}
         <Text style={styles.sub}>ウォレットアドレス</Text>
@@ -127,7 +142,7 @@ export default function Settings({
         <Text style={styles.dangerText}>この端末のウォレットを削除</Text>
       </TouchableOpacity>
       <Text style={[styles.sub, { textAlign: 'center' }]}>
-        CAW — Ethereum Edition v0.1.0 / 独立デプロイ版（公式 CAW とは無関係です）
+        CAW — Ethereum Edition v0.1.4 / 独立デプロイ版（公式 CAW とは無関係です）
       </Text>
     </ScrollView>
   );

@@ -18,6 +18,14 @@ export interface NetworkPreset {
   cawActionsL2: string;
   /** CawProfile (name NFT) on L1. */
   cawProfileL1: string;
+  /** CAW token on L1 ('' when minting is not wired for this preset). */
+  cawTokenL1: string;
+  /** CawProfileMinter on L1 (name minting). */
+  cawProfileMinterL1: string;
+  /** CawProfileQuoter on L1 (LayerZero fee quotes for mint/deposit). */
+  cawProfileQuoterL1: string;
+  /** LayerZero destination eid of the L2 (for mint/deposit sync). */
+  lzDestEid: number;
   isTestnet: boolean;
 }
 
@@ -31,6 +39,10 @@ export const TESTNET_PRESET: NetworkPreset = {
   l2RpcUrl: 'https://sepolia.base.org',
   cawActionsL2: '0x801d3df0C675058AC363af0b8DDb5B52147D90d4',
   cawProfileL1: '0xbbaA66afb60557e7f1D1517A0494F21C31c51EDE',
+  cawTokenL1: '',
+  cawProfileMinterL1: '',
+  cawProfileQuoterL1: '',
+  lzDestEid: 40245,
   isTestnet: true,
 };
 
@@ -46,10 +58,25 @@ export const MAINNET_PRESET: NetworkPreset = {
   l2RpcUrl: 'https://mainnet.base.org',
   cawActionsL2: '0xf4dFCf0EF472E8aaD3783479051f61EC574C6A8E',
   cawProfileL1: '0xa3700808e1c62E989fbf5CE15312d79d1475bDb4',
+  cawTokenL1: '0xf3b9569F82B18aEf890De263B84189bd33EBe452',
+  cawProfileMinterL1: '0xf219DA7aF9249322D4E982dc49FcE6251bCE0d22',
+  cawProfileQuoterL1: '0x4baBf4136707d6f4C096ea447Ec3285Cc2AF7235',
+  lzDestEid: 30184,
   isTestnet: false,
 };
 
 export const PRESETS: NetworkPreset[] = [TESTNET_PRESET, MAINNET_PRESET];
+
+/**
+ * Public node registry. Community node operators are listed here (hosted on
+ * the introduction site); the app fetches it and connects automatically, so
+ * the timeline appears as soon as a node is online — no manual URL needed.
+ */
+export const NODE_LIST_URL =
+  'https://ql1-infinite42-guppy-histoire.github.io/eth-caw/nodes.json';
+
+/** CAW deposited into a freshly minted name (enough for ~160 posts). */
+export const MINT_DEPOSIT_CAW = '1000000';
 
 export const STORAGE_KEYS = {
   nodeUrl: 'ethcaw.nodeUrl',

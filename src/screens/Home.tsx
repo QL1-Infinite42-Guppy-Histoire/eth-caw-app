@@ -13,6 +13,7 @@ import { ethers } from 'ethers';
 import { colors, styles } from '../theme';
 import { getFeed, type CawItem, type Session } from '../lib/api';
 import { likeAction, recawAction } from '../lib/actions';
+import { getBalances, type OwnedName } from '../lib/mint';
 import type { NetworkPreset } from '../config';
 
 interface Props {
@@ -20,6 +21,8 @@ interface Props {
   preset: NetworkPreset;
   session: Session | null;
   senderId: number | null;
+  names: OwnedName[];
+  onGoMint: () => void;
   onCompose: () => void;
 }
 
@@ -31,7 +34,19 @@ function timeLabel(iso: string): string {
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
-export default function Home({ wallet, preset, session, senderId, onCompose }: Props) {
+export default function Home({ wallet, preset, session, senderId, names, onGoMint, onCompose }: Props) {
+  const [balances, setBalances] = useState<{ eth: bigint; caw: bigint | null } | null>(null);
+
+  useEffect(() => {
+    if (!wallet) return;
+    let live = true;
+    getBalances(wallet, preset)
+      .then((b) => live && setBalances(b))
+      .catch(() => live && setBalances(null));
+    return () => {
+      live = false;
+    };
+  }, [wallet, preset, names]);
   const [items, setItems] = useState<CawItem[]>([]);
   const [cursor, setCursor] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
@@ -105,6 +120,46 @@ export default function Home({ wallet, preset, session, senderId, onCompose }: P
       </View>
     </View>
   );
+
+  if (!session) {
+    return (
+      <View style={styles.root}>
+        <View style={styles.content}>
+          <View style={styles.card}>
+            <Text style={styles.title}>自分の名前</Text>
+            {names.length === 0 ? (
+              <Text style={styles.sub}>まだ名前を持っていません。</Text>
+            ) : (
+              names.map((n) => (
+                <Text key={n.tokenId} style={styles.body}>
+                  @{n.name}
+                  <Text style={{ color: colors.faint }}> （tokenId {n.tokenId}）</Text>
+                </Text>
+              ))
+            )}
+            <Text style={styles.sub}>
+              残高：
+              {balances
+                ? `${Number(ethers.formatEther(balances.eth)).toFixed(5)} ETH${balances.caw != null ? ` / ${Number(ethers.formatUnits(balances.caw, 18)).toLocaleString('ja-JP', { maximumFractionDigits: 0 })} CAW` : ''}`
+                : '…'}
+            </Text>
+            <TouchableOpacity style={styles.button} onPress={onGoMint}>
+              <Text style={styles.buttonText}>名前を取る</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.card}>
+            <Text style={styles.title}>タイムライン</Text>
+            <Text style={styles.sub}>
+              ノードを探しています。コミュニティのノードが立ち上がると、自動で接続してここにタイムラインが表示されます（操作は不要です）。
+            </Text>
+            <Text style={styles.sub}>
+              名前の取得はノードなしで今すぐできます。
+            </Text>
+          </View>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.root}>
