@@ -34,8 +34,8 @@ export const TESTNET_PRESET: NetworkPreset = {
   isTestnet: true,
 };
 
-// Filled in after the mainnet deployment lands; addresses are read from the
-// deploy state file at that time. Kept disabled until then.
+// Mainnet deployment completed 2026-11-11; addresses from the deploy state
+// file (Caw/solidity/.deploy-state.json), wiring verified 43/43.
 export const MAINNET_PRESET: NetworkPreset = {
   id: 'mainnet',
   label: 'Mainnet (Ethereum / Base)',
@@ -44,8 +44,8 @@ export const MAINNET_PRESET: NetworkPreset = {
   l2ChainId: 8453,
   l1RpcUrl: 'https://ethereum-rpc.publicnode.com',
   l2RpcUrl: 'https://mainnet.base.org',
-  cawActionsL2: '',
-  cawProfileL1: '',
+  cawActionsL2: '0xE03a95A5f1681c80D9308A4E571cE9Ee8977F326',
+  cawProfileL1: '0x82455d1a90DD177F02a9b9d0f115Ce30e224DCE3',
   isTestnet: false,
 };
 
