@@ -183,12 +183,18 @@ export default function Node({ lang, preset, myNodeUrl, connectedUrl, onUseNode,
       <View style={styles.card}>
         <Text style={styles.title}>{t.nodeStep1Title}</Text>
         <Text style={styles.sub}>{t.nodeStep1Body}</Text>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => Linking.openURL('https://www.conoha.jp/vps/')}
-        >
-          <Text style={styles.buttonText}>{t.nodeOpenProviderBtn}</Text>
-        </TouchableOpacity>
+        <Text style={[styles.sub, { fontWeight: '700' }]}>{t.nodeOpenProviderBtn}</Text>
+        {(
+          [
+            [t.provConoha, 'https://www.conoha.jp/vps/'],
+            [t.provXserver, 'https://vps.xserver.ne.jp/'],
+            [t.provSakura, 'https://vps.sakura.ad.jp/'],
+          ] as [string, string][]
+        ).map(([label, url]) => (
+          <TouchableOpacity key={url} style={styles.ghostButton} onPress={() => Linking.openURL(url)}>
+            <Text style={styles.ghostText}>{label}</Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       <View style={styles.card}>
