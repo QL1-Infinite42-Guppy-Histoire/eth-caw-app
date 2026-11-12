@@ -337,6 +337,7 @@ function AppInner() {
           lang={lang}
           preset={preset}
           myNodeUrl={myNodeUrl}
+          connectedUrl={nodeUrl}
           onUseNode={onUseNode}
           onReleaseNode={onReleaseNode}
         />

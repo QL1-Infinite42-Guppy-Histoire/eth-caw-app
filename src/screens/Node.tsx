@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 
 import { colors, styles } from '../theme';
@@ -12,6 +12,8 @@ interface Props {
   preset: NetworkPreset;
   /** The node URL the user registered as their own ('' when none). */
   myNodeUrl: string;
+  /** The server the app is currently connected through ('' when none). */
+  connectedUrl: string;
   /** Save this URL as my node and connect to it. */
   onUseNode: (url: string) => void;
   /** Forget my node; the app goes back to automatic discovery. */
@@ -20,7 +22,7 @@ interface Props {
 
 type Status = 'idle' | 'checking' | 'ok' | 'bad' | 'wrongnet';
 
-export default function Node({ lang, preset, myNodeUrl, onUseNode, onReleaseNode }: Props) {
+export default function Node({ lang, preset, myNodeUrl, connectedUrl, onUseNode, onReleaseNode }: Props) {
   const t = STRINGS[lang];
   const [urlText, setUrlText] = useState(myNodeUrl);
   const [status, setStatus] = useState<Status>('idle');
@@ -121,6 +123,17 @@ export default function Node({ lang, preset, myNodeUrl, onUseNode, onReleaseNode
         <Text style={styles.sub}>{t.nodeIntro}</Text>
       </View>
 
+      {connectedUrl ? (
+        <View style={styles.card}>
+          <Text style={[styles.body, { color: colors.accent, fontWeight: '700' }]}>
+            ● {t.nodeNowConnected}
+          </Text>
+          <Text selectable style={styles.sub}>
+            {connectedUrl}
+          </Text>
+        </View>
+      ) : null}
+
       <View style={styles.card}>
         <Text style={styles.title}>{t.myNodeTitle}</Text>
         {myNodeUrl ? (
@@ -165,6 +178,12 @@ export default function Node({ lang, preset, myNodeUrl, onUseNode, onReleaseNode
       <View style={styles.card}>
         <Text style={styles.title}>{t.nodeStep1Title}</Text>
         <Text style={styles.sub}>{t.nodeStep1Body}</Text>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => Linking.openURL('https://www.conoha.jp/vps/')}
+        >
+          <Text style={styles.buttonText}>{t.nodeOpenProviderBtn}</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.card}>
