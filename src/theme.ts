@@ -14,6 +14,22 @@ export const colors = {
   line: '#e2e8f0',
 };
 
+// X (Twitter)-style design tokens for the v0.2.0 reskin of the social
+// surfaces (app chrome, Home, Compose). The legacy tokens above are kept
+// untouched so the tool screens (Mint / Swap / Send / Node / Settings)
+// keep their current look until their own reskin.
+export const xColors = {
+  bg: '#ffffff',
+  text: '#0f1419',
+  sub: '#536471',
+  accent: '#1d9bf0',
+  border: '#eff3f4',
+  divider: '#cfd9de',
+  like: '#f91880',
+  recaw: '#00ba7c',
+  danger: '#dc2626',
+};
+
 export const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   content: { paddingHorizontal: 16, paddingTop: 16, gap: 12 },

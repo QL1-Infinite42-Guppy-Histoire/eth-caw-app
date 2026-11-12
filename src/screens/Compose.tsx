@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Alert, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { ethers } from 'ethers';
 
-import { styles } from '../theme';
+import { xColors } from '../theme';
 import { postAction } from '../lib/actions';
 import { getValidatorTip } from '../lib/api';
 import type { Session } from '../lib/api';
@@ -46,27 +46,78 @@ export default function Compose({ lang, wallet, preset, session, senderId, onDon
   };
 
   return (
-    <View style={[styles.root, styles.content]}>
-      <Text style={styles.title}>{t.postTitle}</Text>
-      <Text style={styles.sub}>{t.postNote}</Text>
-      {tip != null && (
-        <Text style={styles.sub}>{fmt(t.validatorTip, { n: tip.toLocaleString('ja-JP') })}</Text>
-      )}
-      <TextInput
-        style={[styles.input, { minHeight: 140, textAlignVertical: 'top' }]}
-        multiline
-        autoFocus
-        maxLength={2000}
-        placeholder={t.postPlaceholder}
-        value={text}
-        onChangeText={setText}
-      />
-      <TouchableOpacity style={styles.button} onPress={submit} disabled={busy || !text.trim()}>
-        <Text style={styles.buttonText}>{busy ? t.sending : t.postBtn}</Text>
-      </TouchableOpacity>
-      <TouchableOpacity onPress={onDone}>
-        <Text style={styles.sub}>{t.backToTimeline}</Text>
-      </TouchableOpacity>
+    <View style={{ flex: 1, backgroundColor: xColors.bg }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: 16,
+          paddingVertical: 10,
+          borderBottomWidth: 1,
+          borderBottomColor: xColors.border,
+        }}
+      >
+        <TouchableOpacity onPress={onDone} hitSlop={8}>
+          <Text style={{ fontSize: 20, color: xColors.text }}>✕</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={{
+            backgroundColor: xColors.accent,
+            borderRadius: 999,
+            paddingHorizontal: 20,
+            paddingVertical: 8,
+            opacity: busy || !text.trim() ? 0.45 : 1,
+          }}
+          onPress={submit}
+          disabled={busy || !text.trim()}
+        >
+          <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>
+            {busy ? t.sending : t.postBtn}
+          </Text>
+        </TouchableOpacity>
+      </View>
+      <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingTop: 14 }}>
+        <View
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: xColors.accent,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>
+            {wallet.address.slice(2, 3).toUpperCase()}
+          </Text>
+        </View>
+        <TextInput
+          style={{
+            flex: 1,
+            minHeight: 120,
+            textAlignVertical: 'top',
+            fontSize: 17,
+            color: xColors.text,
+            paddingTop: 8,
+          }}
+          multiline
+          autoFocus
+          maxLength={2000}
+          placeholder={t.postPlaceholder}
+          placeholderTextColor={xColors.sub}
+          value={text}
+          onChangeText={setText}
+        />
+      </View>
+      <View style={{ paddingLeft: 66, paddingRight: 16, gap: 4 }}>
+        <Text style={{ fontSize: 12, color: xColors.sub, lineHeight: 17 }}>{t.postNote}</Text>
+        {tip != null && (
+          <Text style={{ fontSize: 12, color: xColors.sub, lineHeight: 17 }}>
+            {fmt(t.validatorTip, { n: tip.toLocaleString('ja-JP') })}
+          </Text>
+        )}
+      </View>
     </View>
   );
 }

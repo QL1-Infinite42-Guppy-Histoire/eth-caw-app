@@ -4,6 +4,7 @@ import { ActivityIndicator, Alert, Image, Text, TouchableOpacity, View } from 'r
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ethers } from 'ethers';
+import { SvgXml } from 'react-native-svg';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { STRINGS, detectLang, type Lang } from './src/i18n';
@@ -15,7 +16,7 @@ import {
   TESTNET_PRESET,
   type NetworkPreset,
 } from './src/config';
-import { colors, styles } from './src/theme';
+import { colors, styles, xColors } from './src/theme';
 import { hasWallet, loadWallet } from './src/lib/wallet';
 import {
   IndexingError,
@@ -269,26 +270,61 @@ function AppInner() {
       <View
         style={{
           flexDirection: 'row',
-          alignItems: 'baseline',
+          alignItems: 'center',
           paddingHorizontal: 16,
-          paddingTop: insets.top + 12,
-          paddingBottom: 6,
+          paddingTop: insets.top + 8,
+          paddingBottom: 8,
+          backgroundColor: xColors.bg,
+          borderBottomWidth: 1,
+          borderBottomColor: xColors.border,
         }}
       >
-        <Image
-          source={require('./assets/icon.png')}
-          style={{ width: 30, height: 30, borderRadius: 8, marginRight: 8 }}
-        />
-        <Text style={{ fontSize: 24, fontWeight: '800', color: colors.accentDark }}>CAW</Text>
-        <Text style={{ fontSize: 11, color: colors.sub, marginLeft: 6 }}>Ethereum Edition</Text>
-        <View style={{ flex: 1 }} />
-        <View style={{ alignItems: 'flex-end' }}>
-          <Text style={{ fontSize: 12, fontWeight: primaryName ? '700' : '400', color: primaryName ? colors.accentDark : colors.faint }}>
+        <View style={{ flex: 1, alignItems: 'flex-start' }}>
+          {primaryName?.imageSvg ? (
+            <View style={{ width: 32, height: 32, borderRadius: 16, overflow: 'hidden' }}>
+              <SvgXml xml={primaryName.imageSvg} width={32} height={32} />
+            </View>
+          ) : primaryName ? (
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: xColors.accent,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>
+                {primaryName.name.replace(/^#/, '').charAt(0).toUpperCase() || 'C'}
+              </Text>
+            </View>
+          ) : (
+            <Image
+              source={require('./assets/icon.png')}
+              style={{ width: 32, height: 32, borderRadius: 16 }}
+            />
+          )}
+        </View>
+        <Text style={{ fontSize: 20, fontWeight: '800', color: xColors.text }}>CAW</Text>
+        <View style={{ flex: 1, alignItems: 'flex-end' }}>
+          <Text style={{ fontSize: 11, fontWeight: primaryName ? '700' : '400', color: primaryName ? xColors.text : xColors.sub }}>
             {primaryName ? `@${primaryName.name}` : session ? t.headerNoName : t.headerWaiting}
           </Text>
-          <Text style={{ fontSize: 10, color: session ? colors.accent : colors.faint }}>
-            {session ? `● ${t.chipConnected}` : `○ ${t.headerWaiting}`}
-          </Text>
+          <View
+            style={{
+              marginTop: 2,
+              borderWidth: 1,
+              borderColor: xColors.border,
+              borderRadius: 999,
+              paddingHorizontal: 7,
+              paddingVertical: 1,
+            }}
+          >
+            <Text style={{ fontSize: 10, color: session ? xColors.accent : xColors.sub }}>
+              {session ? `● ${t.chipConnected}` : `○ ${t.headerWaiting}`}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -366,24 +402,40 @@ function AppInner() {
         style={{
           flexDirection: 'row',
           borderTopWidth: 1,
-          borderTopColor: colors.line,
-          backgroundColor: colors.card,
-          paddingTop: 8,
+          borderTopColor: xColors.border,
+          backgroundColor: xColors.bg,
+          paddingTop: 6,
           paddingBottom: Math.max(insets.bottom, 8) + 4,
         }}
       >
         {(
           [
-            ['home', t.tabHome],
-            ['mint', t.tabMint],
-            ['swap', t.tabSwap],
-            ['send', t.tabSend],
-            ['node', t.tabNode],
-            ['settings', t.tabSettings],
-          ] as [Tab, string][]
-        ).map(([t, label]) => (
-          <TouchableOpacity key={t} style={{ flex: 1, alignItems: 'center' }} onPress={() => setTab(t)}>
-            <Text style={{ color: tab === t ? colors.accent : colors.sub, fontWeight: tab === t ? '700' : '400' }}>
+            ['home', '⌂', t.tabHome],
+            ['mint', '＠', t.tabMint],
+            ['swap', '⇄', t.tabSwap],
+            ['send', '➤', t.tabSend],
+            ['node', '▦', t.tabNode],
+            ['settings', '⚙', t.tabSettings],
+          ] as [Tab, string, string][]
+        ).map(([key, glyph, label]) => (
+          <TouchableOpacity key={key} style={{ flex: 1, alignItems: 'center' }} onPress={() => setTab(key)}>
+            <Text
+              style={{
+                fontSize: 19,
+                lineHeight: 23,
+                color: tab === key ? xColors.text : xColors.sub,
+                fontWeight: tab === key ? '700' : '400',
+              }}
+            >
+              {glyph}
+            </Text>
+            <Text
+              style={{
+                fontSize: 10,
+                color: tab === key ? xColors.text : xColors.sub,
+                fontWeight: tab === key ? '700' : '400',
+              }}
+            >
               {label}
             </Text>
           </TouchableOpacity>
