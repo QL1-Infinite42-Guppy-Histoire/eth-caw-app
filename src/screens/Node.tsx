@@ -123,6 +123,11 @@ export default function Node({ lang, preset, myNodeUrl, connectedUrl, onUseNode,
         <Text style={styles.sub}>{t.nodeIntro}</Text>
       </View>
 
+      <View style={styles.card}>
+        <Text style={styles.title}>{t.nodeBenefitTitle}</Text>
+        <Text style={styles.body}>{t.nodeBenefitBody}</Text>
+      </View>
+
       {connectedUrl ? (
         <View style={styles.card}>
           <Text style={[styles.body, { color: colors.accent, fontWeight: '700' }]}>
