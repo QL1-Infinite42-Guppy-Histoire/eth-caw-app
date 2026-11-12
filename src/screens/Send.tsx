@@ -6,8 +6,15 @@ import { ethers } from 'ethers';
 import { colors, styles } from '../theme';
 import { STRINGS, type Lang } from '../i18n';
 import type { NetworkPreset } from '../config';
-import { getBalances } from '../lib/mint';
-import { estimateSendFee, explorerTxUrl, sendAsset, type SendAsset } from '../lib/send';
+import { fetchOwnedNames, getBalances, type OwnedName } from '../lib/mint';
+import {
+  estimateNameFee,
+  estimateSendFee,
+  explorerTxUrl,
+  sendAsset,
+  sendName,
+  type SendAsset,
+} from '../lib/send';
 
 interface Props {
   lang: Lang;
@@ -28,6 +35,16 @@ export default function Send({ lang, wallet, preset }: Props) {
   const [fee, setFee] = useState<bigint | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState('');
+  const [names, setNames] = useState<OwnedName[] | null>(null);
+  const [selName, setSelName] = useState<OwnedName | null>(null);
+
+  useEffect(() => {
+    if (asset === 'NAME' && names === null) {
+      fetchOwnedNames(wallet, preset)
+        .then(setNames)
+        .catch(() => setNames([]));
+    }
+  }, [asset, names, wallet, preset]);
 
   const refreshBalances = React.useCallback(() => {
     getBalances(wallet, preset)
@@ -61,6 +78,19 @@ export default function Send({ lang, wallet, preset }: Props) {
       setError(t.sendInvalidAddress);
       return;
     }
+    if (asset === 'NAME') {
+      if (!selName) {
+        setError(t.sendPickName);
+        return;
+      }
+      try {
+        setFee(await estimateNameFee(wallet, preset, dest, BigInt(selName.tokenId)));
+      } catch {
+        setFee(null);
+      }
+      setStage('confirm');
+      return;
+    }
     const value = parseAmount();
     if (value == null) {
       setError(t.sendInvalidAmount);
@@ -79,6 +109,21 @@ export default function Send({ lang, wallet, preset }: Props) {
   };
 
   const doSend = async () => {
+    if (asset === 'NAME') {
+      if (!selName) return;
+      setStage('sending');
+      setError(null);
+      try {
+        const hash = await sendName(wallet, preset, to.trim(), BigInt(selName.tokenId));
+        setTxHash(hash);
+        setStage('done');
+      } catch (e) {
+        setStage('confirm');
+        setError(e instanceof Error ? e.message : String(e));
+        Alert.alert(t.sendFailed, e instanceof Error ? e.message : String(e));
+      }
+      return;
+    }
     const value = parseAmount();
     if (value == null) return;
     setStage('sending');
@@ -101,8 +146,13 @@ export default function Send({ lang, wallet, preset }: Props) {
     setFee(null);
     setError(null);
     setTxHash('');
+    setSelName(null);
+    setNames(null);
     setStage('input');
   };
+
+  const sentWhat =
+    asset === 'NAME' && selName ? `@${selName.name} (#${selName.tokenId})` : `${amount} ${asset}`;
 
   if (stage === 'done') {
     return (
@@ -110,7 +160,7 @@ export default function Send({ lang, wallet, preset }: Props) {
         <View style={styles.card}>
           <Text style={styles.title}>{t.sendDoneTitle}</Text>
           <Text style={styles.body}>
-            {amount} {asset} → {to.trim()}
+            {sentWhat} → {to.trim()}
           </Text>
           <Text style={styles.sub}>{t.sendTxLabel}</Text>
           <Text selectable style={styles.body}>
@@ -132,9 +182,8 @@ export default function Send({ lang, wallet, preset }: Props) {
       <ScrollView style={styles.root} contentContainerStyle={styles.content}>
         <View style={styles.card}>
           <Text style={styles.title}>{t.sendConfirmTitle}</Text>
-          <Text style={styles.body}>
-            {amount} {asset}
-          </Text>
+          <Text style={styles.body}>{sentWhat}</Text>
+          {asset === 'NAME' && <Text style={styles.sub}>{t.sendNameDepositNote}</Text>}
           <Text style={styles.sub}>{t.sendToLabel}</Text>
           <Text selectable style={styles.body}>
             {to.trim()}
@@ -161,19 +210,23 @@ export default function Send({ lang, wallet, preset }: Props) {
         <Text style={styles.title}>{t.sendTitle}</Text>
         <Text style={styles.sub}>{t.sendAsset}</Text>
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          {(['ETH', ...(hasCaw ? ['CAW'] : [])] as SendAsset[]).map((a) => (
+          {(['ETH', ...(hasCaw ? ['CAW'] : []), 'NAME'] as SendAsset[]).map((a) => (
             <TouchableOpacity
               key={a}
               style={a === asset ? styles.button : styles.ghostButton}
               onPress={() => setAsset(a)}
             >
-              <Text style={a === asset ? styles.buttonText : styles.ghostText}>{a}</Text>
+              <Text style={a === asset ? styles.buttonText : styles.ghostText}>
+                {a === 'NAME' ? t.sendAssetName : a}
+              </Text>
             </TouchableOpacity>
           ))}
           <View style={{ flex: 1 }} />
-          <Text style={[styles.sub, { alignSelf: 'center' }]}>
-            {t.sendBalance}：{balanceText}
-          </Text>
+          {asset !== 'NAME' && (
+            <Text style={[styles.sub, { alignSelf: 'center' }]}>
+              {t.sendBalance}：{balanceText}
+            </Text>
+          )}
         </View>
         <Text style={styles.sub}>{t.sendToLabel}</Text>
         <TextInput
@@ -192,25 +245,54 @@ export default function Send({ lang, wallet, preset }: Props) {
         >
           <Text style={{ color: colors.accent, fontSize: 13 }}>{t.nodePasteBtn}</Text>
         </TouchableOpacity>
-        <Text style={styles.sub}>{t.sendAmountLabel}</Text>
-        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-          <TextInput
-            style={[styles.input, { flex: 1 }]}
-            keyboardType="decimal-pad"
-            placeholder="0.0"
-            value={amount}
-            onChangeText={setAmount}
-          />
-          <TouchableOpacity
-            style={styles.ghostButton}
-            onPress={() => {
-              if (balance == null) return;
-              setAmount(asset === 'ETH' ? ethers.formatEther(balance) : ethers.formatUnits(balance, 18));
-            }}
-          >
-            <Text style={styles.ghostText}>{t.sendMax}</Text>
-          </TouchableOpacity>
-        </View>
+        {asset === 'NAME' ? (
+          <>
+            <Text style={styles.sub}>{t.sendNameLabel}</Text>
+            {names === null ? (
+              <Text style={styles.sub}>…</Text>
+            ) : names.length === 0 ? (
+              <Text style={styles.sub}>{t.sendNoNames}</Text>
+            ) : (
+              names.map((n) => (
+                <TouchableOpacity
+                  key={n.tokenId}
+                  style={selName?.tokenId === n.tokenId ? styles.button : styles.ghostButton}
+                  onPress={() => setSelName(n)}
+                >
+                  <Text style={selName?.tokenId === n.tokenId ? styles.buttonText : styles.ghostText}>
+                    @{n.name} (#{n.tokenId})
+                    {n.depositCaw != null
+                      ? ` · ${Number(ethers.formatUnits(n.depositCaw, 18)).toLocaleString('ja-JP', { maximumFractionDigits: 0 })} CAW`
+                      : ''}
+                  </Text>
+                </TouchableOpacity>
+              ))
+            )}
+            <Text style={styles.sub}>{t.sendNameDepositNote}</Text>
+          </>
+        ) : (
+          <>
+            <Text style={styles.sub}>{t.sendAmountLabel}</Text>
+            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                keyboardType="decimal-pad"
+                placeholder="0.0"
+                value={amount}
+                onChangeText={setAmount}
+              />
+              <TouchableOpacity
+                style={styles.ghostButton}
+                onPress={() => {
+                  if (balance == null) return;
+                  setAmount(asset === 'ETH' ? ethers.formatEther(balance) : ethers.formatUnits(balance, 18));
+                }}
+              >
+                <Text style={styles.ghostText}>{t.sendMax}</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
         {error && <Text style={[styles.body, { color: colors.danger }]}>{error}</Text>}
         <TouchableOpacity style={styles.button} onPress={review}>
           <Text style={styles.buttonText}>{t.sendReviewBtn}</Text>

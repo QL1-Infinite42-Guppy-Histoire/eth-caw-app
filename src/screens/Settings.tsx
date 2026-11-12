@@ -203,7 +203,7 @@ export default function Settings({
         <Text style={styles.dangerText}>{t.deleteWallet}</Text>
       </TouchableOpacity>
       <Text style={[styles.sub, { textAlign: 'center' }]}>
-        {fmt(t.versionFooter, { v: 'v0.1.15' })}
+        {fmt(t.versionFooter, { v: 'v0.1.16' })}
       </Text>
     </ScrollView>
   );

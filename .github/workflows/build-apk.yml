@@ -2,6 +2,11 @@ name: Build APK
 
 on:
   workflow_dispatch:
+    inputs:
+      private_build:
+        description: 'Private build for the initiator only (minting entrance open; versionCode +1; artifact is never released)'
+        type: boolean
+        default: false
   push:
     branches: [main]
 
@@ -36,6 +41,16 @@ jobs:
       - name: Install JS dependencies
         run: npm ci
 
+      # Private builds (manual dispatch only): open the minting entrance via
+      # EXPO_PUBLIC_MINT_OPEN (read in src/screens/Mint.tsx) and mark the
+      # build as private with a -pvt version suffix and versionCode +1, so
+      # it installs over the public build and later public builds install
+      # over it. The APK stays a workflow artifact; it is never released.
+      - name: Private build adjustments
+        if: ${{ inputs.private_build }}
+        run: |
+          node -e "const fs=require('fs');const p='app.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.expo.android.versionCode+=1;j.expo.version+='-pvt';fs.writeFileSync(p,JSON.stringify(j,null,2)+'\n');console.log('private build:',j.expo.version,'versionCode',j.expo.android.versionCode);"
+
       # Plain Gradle build (no EAS account needed). The release APK is
       # signed after the build with apksigner using the project keystore
       # kept in repo secrets (KEYSTORE_B64 / KEYSTORE_PASSWORD), so every
@@ -46,6 +61,8 @@ jobs:
 
       - name: Build release APK (unsigned)
         working-directory: android
+        env:
+          EXPO_PUBLIC_MINT_OPEN: ${{ inputs.private_build && '1' || '' }}
         run: ./gradlew assembleRelease --no-daemon
 
       - name: Align and sign APK
