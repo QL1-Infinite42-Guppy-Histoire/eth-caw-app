@@ -26,6 +26,7 @@ interface Props {
   senderId: number | null;
   names: OwnedName[];
   onGoMint: () => void;
+  onGoNode: () => void;
   onCompose: () => void;
 }
 
@@ -38,7 +39,7 @@ function timeLabel(iso: string, lang: Lang): string {
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
-export default function Home({ lang, wallet, preset, session, senderId, names, onGoMint, onCompose }: Props) {
+export default function Home({ lang, wallet, preset, session, senderId, names, onGoMint, onGoNode, onCompose }: Props) {
   const t = STRINGS[lang];
   const [balances, setBalances] = useState<{ eth: bigint; caw: bigint | null } | null>(null);
 
@@ -151,6 +152,9 @@ export default function Home({ lang, wallet, preset, session, senderId, names, o
             <Text style={styles.title}>{t.timeline}</Text>
             <Text style={styles.sub}>{t.nodeSearching}</Text>
             <Text style={styles.sub}>{t.mintNoNodeNote}</Text>
+            <TouchableOpacity style={styles.button} onPress={onGoNode}>
+              <Text style={styles.buttonText}>{t.nodeHomeCta}</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </View>

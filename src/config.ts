@@ -79,11 +79,26 @@ export const PRESETS: NetworkPreset[] = [TESTNET_PRESET, MAINNET_PRESET];
 export const NODE_LIST_URL =
   'https://ql1-infinite42-guppy-histoire.github.io/eth-caw/nodes.json';
 
+/**
+ * Dynamic node registry (Cloudflare Worker + KV). Nodes installed with the
+ * one-touch installer announce their own URL here; the worker lists only
+ * entries that answer right now with a real node API. Merged with the
+ * static list above.
+ */
+export const REGISTRY_URL = 'https://eth-caw-registry.nepicobsv.workers.dev';
+
+/** One-touch node installer, published with the node kit on the intro site. */
+export const INSTALL_SCRIPT_URL =
+  'https://ql1-infinite42-guppy-histoire.github.io/eth-caw/node-kit/install-node.sh';
+export const INSTALL_COMMAND =
+  'curl -fsSL https://ql1-infinite42-guppy-histoire.github.io/eth-caw/node-kit/install-node.sh | bash';
+
 /** CAW deposited into a freshly minted name (enough for ~160 posts). */
 export const MINT_DEPOSIT_CAW = '1000000';
 
 export const STORAGE_KEYS = {
   nodeUrl: 'ethcaw.nodeUrl',
+  myNodeUrl: 'ethcaw.myNodeUrl',
   presetId: 'ethcaw.presetId',
   session: 'ethcaw.session',
   lang: 'ethcaw.lang',

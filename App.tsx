@@ -33,9 +33,10 @@ import Swap from './src/screens/Swap';
 import Home from './src/screens/Home';
 import Compose from './src/screens/Compose';
 import Settings from './src/screens/Settings';
+import NodeScreen from './src/screens/Node';
 
 type Phase = 'boot' | 'onboarding' | 'locked' | 'main';
-type Tab = 'home' | 'mint' | 'swap' | 'compose' | 'settings';
+type Tab = 'home' | 'mint' | 'swap' | 'compose' | 'node' | 'settings';
 
 function AppInner() {
   const [phase, setPhase] = useState<Phase>('boot');
@@ -46,6 +47,7 @@ function AppInner() {
   const [preset, setPreset] = useState<NetworkPreset>(MAINNET_PRESET);
   const [names, setNames] = useState<OwnedName[]>([]);
   const [nodeUrl, setNodeUrlState] = useState('');
+  const [myNodeUrl, setMyNodeUrl] = useState('');
   const [wallet, setWallet] = useState<ethers.HDNodeWallet | null>(null);
   const [session, setSession] = useState<Session | null>(null);
 
@@ -120,11 +122,13 @@ function AppInner() {
 
   useEffect(() => {
     (async () => {
-      const [savedPresetId, savedUrl, savedLang] = await Promise.all([
+      const [savedPresetId, savedUrl, savedLang, savedMine] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.presetId),
         AsyncStorage.getItem(STORAGE_KEYS.nodeUrl),
         AsyncStorage.getItem(STORAGE_KEYS.lang),
+        AsyncStorage.getItem(STORAGE_KEYS.myNodeUrl),
       ]);
+      setMyNodeUrl(savedMine ?? '');
       setLang(
         savedLang === 'ja' || savedLang === 'en' || savedLang === 'zh' || savedLang === 'ko' || savedLang === 'es'
           ? savedLang
@@ -209,6 +213,25 @@ function AppInner() {
     [connect, preset, wallet],
   );
 
+  const onUseNode = useCallback(
+    async (url: string) => {
+      setMyNodeUrl(url);
+      await AsyncStorage.setItem(STORAGE_KEYS.myNodeUrl, url);
+      await onNodeUrlChange(url);
+    },
+    [onNodeUrlChange],
+  );
+
+  const onReleaseNode = useCallback(async () => {
+    setMyNodeUrl('');
+    await AsyncStorage.removeItem(STORAGE_KEYS.myNodeUrl);
+    setNodeUrlState('');
+    await AsyncStorage.setItem(STORAGE_KEYS.nodeUrl, '');
+    await saveSession(null);
+    setSession(null);
+    if (wallet) await resolveAndConnect(wallet, preset);
+  }, [resolveAndConnect, preset, wallet]);
+
   if (phase === 'boot') {
     return (
       <View style={[styles.root, { alignItems: 'center', justifyContent: 'center' }]}>
@@ -258,9 +281,14 @@ function AppInner() {
         <Text style={{ fontSize: 24, fontWeight: '800', color: colors.accentDark }}>CAW</Text>
         <Text style={{ fontSize: 11, color: colors.sub, marginLeft: 6 }}>Ethereum Edition</Text>
         <View style={{ flex: 1 }} />
-        <Text style={{ fontSize: 12, fontWeight: primaryName ? '700' : '400', color: primaryName ? colors.accentDark : colors.faint }}>
-          {primaryName ? `@${primaryName.name}` : session ? t.headerNoName : t.headerWaiting}
-        </Text>
+        <View style={{ alignItems: 'flex-end' }}>
+          <Text style={{ fontSize: 12, fontWeight: primaryName ? '700' : '400', color: primaryName ? colors.accentDark : colors.faint }}>
+            {primaryName ? `@${primaryName.name}` : session ? t.headerNoName : t.headerWaiting}
+          </Text>
+          <Text style={{ fontSize: 10, color: session ? colors.accent : colors.faint }}>
+            {session ? `● ${t.chipConnected}` : `○ ${t.headerWaiting}`}
+          </Text>
+        </View>
       </View>
 
       {tab === 'home' && (
@@ -272,6 +300,7 @@ function AppInner() {
           senderId={senderId}
           names={names}
           onGoMint={() => setTab('mint')}
+          onGoNode={() => setTab('node')}
           onCompose={() => {
             if (!session || senderId == null) {
               Alert.alert(t.nameRequiredTitle, t.nameRequiredMsgPost);
@@ -301,6 +330,15 @@ function AppInner() {
         />
       )}
       {tab === 'swap' && <Swap lang={lang} wallet={wallet} preset={preset} />}
+      {tab === 'node' && (
+        <NodeScreen
+          lang={lang}
+          preset={preset}
+          myNodeUrl={myNodeUrl}
+          onUseNode={onUseNode}
+          onReleaseNode={onReleaseNode}
+        />
+      )}
       {tab === 'settings' && (
         <Settings
           lang={lang}
@@ -312,6 +350,7 @@ function AppInner() {
           names={names}
           onPresetChange={onPresetChange}
           onNodeUrlChange={onNodeUrlChange}
+          onOpenNode={() => setTab('node')}
           onWalletDeleted={() => {
             setWallet(null);
             setSession(null);
@@ -335,6 +374,7 @@ function AppInner() {
             ['home', t.tabHome],
             ['mint', t.tabMint],
             ['swap', t.tabSwap],
+            ['node', t.tabNode],
             ['settings', t.tabSettings],
           ] as [Tab, string][]
         ).map(([t, label]) => (

@@ -21,6 +21,7 @@ interface Props {
   names: OwnedName[];
   onPresetChange: (p: NetworkPreset) => void;
   onNodeUrlChange: (url: string) => void;
+  onOpenNode: () => void;
   onWalletDeleted: () => void;
 }
 
@@ -39,6 +40,7 @@ export default function Settings({
   names,
   onPresetChange,
   onNodeUrlChange,
+  onOpenNode,
   onWalletDeleted,
 }: Props) {
   const t = STRINGS[lang];
@@ -80,6 +82,16 @@ export default function Settings({
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
+      <View style={styles.card}>
+        <Text style={styles.title}>{t.tabNode}</Text>
+        <Text style={styles.sub}>
+          {nodeUrl ? `${t.nodeConnectedTo}: ${nodeUrl}` : t.nodeNotConnected}
+        </Text>
+        <TouchableOpacity style={styles.button} onPress={onOpenNode}>
+          <Text style={styles.buttonText}>{t.nodeOpenWizard}</Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.card}>
         <Text style={styles.title}>{t.connection}</Text>
         <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -191,7 +203,7 @@ export default function Settings({
         <Text style={styles.dangerText}>{t.deleteWallet}</Text>
       </TouchableOpacity>
       <Text style={[styles.sub, { textAlign: 'center' }]}>
-        {fmt(t.versionFooter, { v: 'v0.1.10' })}
+        {fmt(t.versionFooter, { v: 'v0.1.11' })}
       </Text>
     </ScrollView>
   );
