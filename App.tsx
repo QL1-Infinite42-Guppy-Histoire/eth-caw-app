@@ -34,9 +34,10 @@ import Home from './src/screens/Home';
 import Compose from './src/screens/Compose';
 import Settings from './src/screens/Settings';
 import NodeScreen from './src/screens/Node';
+import Send from './src/screens/Send';
 
 type Phase = 'boot' | 'onboarding' | 'locked' | 'main';
-type Tab = 'home' | 'mint' | 'swap' | 'compose' | 'node' | 'settings';
+type Tab = 'home' | 'mint' | 'swap' | 'send' | 'compose' | 'node' | 'settings';
 
 function AppInner() {
   const [phase, setPhase] = useState<Phase>('boot');
@@ -330,6 +331,7 @@ function AppInner() {
         />
       )}
       {tab === 'swap' && <Swap lang={lang} wallet={wallet} preset={preset} />}
+      {tab === 'send' && <Send lang={lang} wallet={wallet} preset={preset} />}
       {tab === 'node' && (
         <NodeScreen
           lang={lang}
@@ -374,6 +376,7 @@ function AppInner() {
             ['home', t.tabHome],
             ['mint', t.tabMint],
             ['swap', t.tabSwap],
+            ['send', t.tabSend],
             ['node', t.tabNode],
             ['settings', t.tabSettings],
           ] as [Tab, string][]
