@@ -1,8 +1,58 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Linking, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 
-import { colors, styles } from '../theme';
+import { xColors } from '../theme';
+// X-style local styles for the v0.2.2 reskin of the tool screens: same
+// tokens and shapes as the social surfaces (Home / Compose /
+// Notifications) — white background, #EFF3F4-bordered cards, accent
+// pill buttons, #CFD9DE-outlined secondary pills and inputs.
+const xs = StyleSheet.create({
+  root: { flex: 1, backgroundColor: xColors.bg },
+  content: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 24, gap: 12 },
+  card: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: xColors.border,
+    borderRadius: 16,
+    padding: 16,
+    gap: 6,
+  },
+  h1: { fontSize: 22, fontWeight: '800', color: xColors.text },
+  title: { fontSize: 16, fontWeight: '700', color: xColors.text },
+  body: { fontSize: 14, color: xColors.text, lineHeight: 20 },
+  sub: { fontSize: 13, color: xColors.sub, lineHeight: 18 },
+  input: {
+    backgroundColor: '#ffffff',
+    borderColor: xColors.divider,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: xColors.text,
+  },
+  button: {
+    backgroundColor: xColors.accent,
+    borderRadius: 999,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  buttonText: { color: '#ffffff', fontSize: 15, fontWeight: '700' },
+  ghostButton: {
+    borderColor: xColors.divider,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+  },
+  ghostText: { color: xColors.text, fontSize: 15, fontWeight: '600' },
+  dangerText: { color: xColors.danger, fontSize: 14, fontWeight: '600' },
+});
+
 import { STRINGS, type Lang } from '../i18n';
 import { INSTALL_COMMAND, type NetworkPreset } from '../config';
 import { fetchInstallScript, probeNodeInfo } from '../lib/nodes';
@@ -114,44 +164,44 @@ export default function Node({ lang, preset, myNodeUrl, connectedUrl, onUseNode,
             ? t.nodeStatusChecking
             : null;
   const statusColor =
-    status === 'ok' ? colors.accent : status === 'idle' || status === 'checking' ? colors.sub : '#c0392b';
+    status === 'ok' ? xColors.accent : status === 'idle' || status === 'checking' ? xColors.sub : xColors.danger;
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-      <View style={styles.card}>
-        <Text style={styles.title}>{t.nodeScreenTitle}</Text>
-        <Text style={styles.sub}>{t.nodeIntro}</Text>
+    <ScrollView style={xs.root} contentContainerStyle={xs.content}>
+      <View style={xs.card}>
+        <Text style={xs.title}>{t.nodeScreenTitle}</Text>
+        <Text style={xs.sub}>{t.nodeIntro}</Text>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.title}>{t.nodeBenefitTitle}</Text>
-        <Text style={styles.body}>{t.nodeBenefitBody}</Text>
+      <View style={xs.card}>
+        <Text style={xs.title}>{t.nodeBenefitTitle}</Text>
+        <Text style={xs.body}>{t.nodeBenefitBody}</Text>
       </View>
 
       {connectedUrl ? (
-        <View style={styles.card}>
-          <Text style={[styles.body, { color: colors.accent, fontWeight: '700' }]}>
+        <View style={xs.card}>
+          <Text style={[xs.body, { color: xColors.accent, fontWeight: '700' }]}>
             ● {t.nodeNowConnected}
           </Text>
-          <Text selectable style={styles.sub}>
+          <Text selectable style={xs.sub}>
             {connectedUrl}
           </Text>
         </View>
       ) : null}
 
-      <View style={styles.card}>
-        <Text style={styles.title}>{t.myNodeTitle}</Text>
+      <View style={xs.card}>
+        <Text style={xs.title}>{t.myNodeTitle}</Text>
         {myNodeUrl ? (
-          <Text selectable style={styles.body}>
+          <Text selectable style={xs.body}>
             {myNodeUrl}
           </Text>
         ) : (
-          <Text style={styles.sub}>{t.myNodeNone}</Text>
+          <Text style={xs.sub}>{t.myNodeNone}</Text>
         )}
-        {statusText && <Text style={[styles.body, { color: statusColor }]}>{statusText}</Text>}
-        <Text style={styles.sub}>{t.nodeUrlLabel2}</Text>
+        {statusText && <Text style={[xs.body, { color: statusColor }]}>{statusText}</Text>}
+        <Text style={xs.sub}>{t.nodeUrlLabel2}</Text>
         <TextInput
-          style={styles.input}
+          style={xs.input}
           autoCapitalize="none"
           autoCorrect={false}
           placeholder="https://…trycloudflare.com"
@@ -159,11 +209,11 @@ export default function Node({ lang, preset, myNodeUrl, connectedUrl, onUseNode,
           onChangeText={setUrlText}
         />
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          <TouchableOpacity style={styles.ghostButton} onPress={paste}>
-            <Text style={styles.ghostText}>{t.nodePasteBtn}</Text>
+          <TouchableOpacity style={xs.ghostButton} onPress={paste}>
+            <Text style={xs.ghostText}>{t.nodePasteBtn}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.button, { flex: 1 }]} onPress={testAndUse} disabled={busy}>
-            <Text style={styles.buttonText}>{t.nodeUseBtn}</Text>
+          <TouchableOpacity style={[xs.button, { flex: 1 }]} onPress={testAndUse} disabled={busy}>
+            <Text style={xs.buttonText}>{t.nodeUseBtn}</Text>
           </TouchableOpacity>
         </View>
         {myNodeUrl ? (
@@ -171,19 +221,19 @@ export default function Node({ lang, preset, myNodeUrl, connectedUrl, onUseNode,
             <TouchableOpacity
               onPress={async () => setStatus(await check(myNodeUrl))}
             >
-              <Text style={{ color: colors.accent, fontSize: 14 }}>{t.nodeRecheckBtn}</Text>
+              <Text style={{ color: xColors.accent, fontSize: 14 }}>{t.nodeRecheckBtn}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={release}>
-              <Text style={styles.dangerText}>{t.nodeReleaseBtn}</Text>
+              <Text style={xs.dangerText}>{t.nodeReleaseBtn}</Text>
             </TouchableOpacity>
           </View>
         ) : null}
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.title}>{t.nodeStep1Title}</Text>
-        <Text style={styles.sub}>{t.nodeStep1Body}</Text>
-        <Text style={[styles.sub, { fontWeight: '700' }]}>{t.nodeOpenProviderBtn}</Text>
+      <View style={xs.card}>
+        <Text style={xs.title}>{t.nodeStep1Title}</Text>
+        <Text style={xs.sub}>{t.nodeStep1Body}</Text>
+        <Text style={[xs.sub, { fontWeight: '700' }]}>{t.nodeOpenProviderBtn}</Text>
         {(
           [
             [t.provConoha, 'https://www.conoha.jp/vps/'],
@@ -191,30 +241,30 @@ export default function Node({ lang, preset, myNodeUrl, connectedUrl, onUseNode,
             [t.provSakura, 'https://vps.sakura.ad.jp/'],
           ] as [string, string][]
         ).map(([label, url]) => (
-          <TouchableOpacity key={url} style={styles.ghostButton} onPress={() => Linking.openURL(url)}>
-            <Text style={styles.ghostText}>{label}</Text>
+          <TouchableOpacity key={url} style={xs.ghostButton} onPress={() => Linking.openURL(url)}>
+            <Text style={xs.ghostText}>{label}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.title}>{t.nodeStep2Title}</Text>
-        <Text style={styles.sub}>{t.nodeStep2Body}</Text>
-        <TouchableOpacity style={styles.button} onPress={copyScript} disabled={busy}>
-          <Text style={styles.buttonText}>{t.nodeCopyScriptBtn}</Text>
+      <View style={xs.card}>
+        <Text style={xs.title}>{t.nodeStep2Title}</Text>
+        <Text style={xs.sub}>{t.nodeStep2Body}</Text>
+        <TouchableOpacity style={xs.button} onPress={copyScript} disabled={busy}>
+          <Text style={xs.buttonText}>{t.nodeCopyScriptBtn}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.ghostButton} onPress={copyCommand}>
-          <Text style={styles.ghostText}>{t.nodeCopyCmdBtn}</Text>
+        <TouchableOpacity style={xs.ghostButton} onPress={copyCommand}>
+          <Text style={xs.ghostText}>{t.nodeCopyCmdBtn}</Text>
         </TouchableOpacity>
-        <Text selectable style={[styles.sub, { fontSize: 11 }]}>
+        <Text selectable style={[xs.sub, { fontSize: 11 }]}>
           {INSTALL_COMMAND}
         </Text>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.title}>{t.nodeStep3Title}</Text>
-        <Text style={styles.sub}>{t.nodeStep3Body}</Text>
-        <Text style={styles.sub}>{t.nodeReadonlyNote}</Text>
+      <View style={xs.card}>
+        <Text style={xs.title}>{t.nodeStep3Title}</Text>
+        <Text style={xs.sub}>{t.nodeStep3Body}</Text>
+        <Text style={xs.sub}>{t.nodeReadonlyNote}</Text>
       </View>
     </ScrollView>
   );

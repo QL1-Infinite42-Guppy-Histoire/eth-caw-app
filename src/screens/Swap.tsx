@@ -1,8 +1,58 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { ethers } from 'ethers';
 
-import { colors, styles } from '../theme';
+import { xColors } from '../theme';
+// X-style local styles for the v0.2.2 reskin of the tool screens: same
+// tokens and shapes as the social surfaces (Home / Compose /
+// Notifications) — white background, #EFF3F4-bordered cards, accent
+// pill buttons, #CFD9DE-outlined secondary pills and inputs.
+const xs = StyleSheet.create({
+  root: { flex: 1, backgroundColor: xColors.bg },
+  content: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 24, gap: 12 },
+  card: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: xColors.border,
+    borderRadius: 16,
+    padding: 16,
+    gap: 6,
+  },
+  h1: { fontSize: 22, fontWeight: '800', color: xColors.text },
+  title: { fontSize: 16, fontWeight: '700', color: xColors.text },
+  body: { fontSize: 14, color: xColors.text, lineHeight: 20 },
+  sub: { fontSize: 13, color: xColors.sub, lineHeight: 18 },
+  input: {
+    backgroundColor: '#ffffff',
+    borderColor: xColors.divider,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: xColors.text,
+  },
+  button: {
+    backgroundColor: xColors.accent,
+    borderRadius: 999,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  buttonText: { color: '#ffffff', fontSize: 15, fontWeight: '700' },
+  ghostButton: {
+    borderColor: xColors.divider,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+  },
+  ghostText: { color: xColors.text, fontSize: 15, fontWeight: '600' },
+  dangerText: { color: xColors.danger, fontSize: 14, fontWeight: '600' },
+});
+
 import type { NetworkPreset } from '../config';
 import { STRINGS, type Lang } from '../i18n';
 import { getBalances } from '../lib/mint';
@@ -141,17 +191,17 @@ export default function Swap({ lang, wallet, preset }: Props) {
 
   if (phase === 'done') {
     return (
-      <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-        <View style={[styles.card, { alignItems: 'center', paddingVertical: 28 }]}>
+      <ScrollView style={xs.root} contentContainerStyle={xs.content}>
+        <View style={[xs.card, { alignItems: 'center', paddingVertical: 28 }]}>
           <Text style={{ fontSize: 40 }}>✅</Text>
-          <Text style={styles.title}>{t.swapDone}</Text>
-          <Text style={styles.sub}>
+          <Text style={xs.title}>{t.swapDone}</Text>
+          <Text style={xs.sub}>
             {t.balanceLabel}：{balances ? `${fmtEth(balances.eth)} ETH` : '…'}
             {balances?.caw != null ? ` / ${fmtCaw(balances.caw)} CAW` : ''}
           </Text>
         </View>
-        <TouchableOpacity style={styles.button} onPress={() => setPhase('input')}>
-          <Text style={styles.buttonText}>{t.swapExecute}</Text>
+        <TouchableOpacity style={xs.button} onPress={() => setPhase('input')}>
+          <Text style={xs.buttonText}>{t.swapExecute}</Text>
         </TouchableOpacity>
       </ScrollView>
     );
@@ -159,13 +209,13 @@ export default function Swap({ lang, wallet, preset }: Props) {
 
   if (phase === 'review' || busy || phase === 'error') {
     return (
-      <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-        <View style={styles.card}>
-          <Text style={styles.title}>{t.swapReview}</Text>
-          <Text style={styles.body}>
+      <ScrollView style={xs.root} contentContainerStyle={xs.content}>
+        <View style={xs.card}>
+          <Text style={xs.title}>{t.swapReview}</Text>
+          <Text style={xs.body}>
             {t.swapPay}：{payIsEth ? `${fmtEth(amountIn)} ETH` : `${fmtCaw(amountIn)} CAW`}
           </Text>
-          <Text style={styles.body}>
+          <Text style={xs.body}>
             {t.swapReceive}：
             {quoted != null
               ? payIsEth
@@ -173,7 +223,7 @@ export default function Swap({ lang, wallet, preset }: Props) {
                 : `${fmtEth(quoted, 8)} ETH`
               : '…'}
           </Text>
-          <Text style={styles.sub}>
+          <Text style={xs.sub}>
             {t.swapMinReceive}：
             {minOut != null
               ? payIsEth
@@ -182,15 +232,15 @@ export default function Swap({ lang, wallet, preset }: Props) {
               : '…'}{' '}
             （{t.swapSlippage} {slippage}%）
           </Text>
-          <Text style={styles.sub}>{t.swapConfirmNote}</Text>
-          {error && <Text style={[styles.sub, { color: colors.danger }]}>{error}</Text>}
+          <Text style={xs.sub}>{t.swapConfirmNote}</Text>
+          {error && <Text style={[xs.sub, { color: xColors.danger }]}>{error}</Text>}
         </View>
         <TouchableOpacity
-          style={[styles.button, { opacity: busy ? 0.5 : 1 }]}
+          style={[xs.button, { opacity: busy ? 0.5 : 1 }]}
           disabled={busy}
           onPress={doSwap}
         >
-          <Text style={styles.buttonText}>
+          <Text style={xs.buttonText}>
             {phase === 'approving'
               ? t.stepApproving
               : phase === 'swapping'
@@ -202,7 +252,7 @@ export default function Swap({ lang, wallet, preset }: Props) {
         </TouchableOpacity>
         {!busy && (
           <TouchableOpacity onPress={() => setPhase('input')} style={{ alignItems: 'center', paddingVertical: 8 }}>
-            <Text style={styles.sub}>{t.swapBack}</Text>
+            <Text style={xs.sub}>{t.swapBack}</Text>
           </TouchableOpacity>
         )}
       </ScrollView>
@@ -210,9 +260,9 @@ export default function Swap({ lang, wallet, preset }: Props) {
   }
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-      <View style={styles.card}>
-        <Text style={styles.sub}>
+    <ScrollView style={xs.root} contentContainerStyle={xs.content}>
+      <View style={xs.card}>
+        <Text style={xs.sub}>
           {t.swapPay}（{paySymbol}）
           {payBalance != null
             ? ` ・ ${t.balanceLabel} ${payIsEth ? fmtEth(payBalance) : fmtCaw(payBalance)}`
@@ -220,26 +270,26 @@ export default function Swap({ lang, wallet, preset }: Props) {
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <TextInput
-            style={[styles.input, { flex: 1, fontSize: 20 }]}
+            style={[xs.input, { flex: 1, fontSize: 20 }]}
             keyboardType="decimal-pad"
             placeholder="0.0"
             value={amountText}
             onChangeText={setAmountText}
           />
-          <TouchableOpacity style={styles.ghostButton} onPress={setMax}>
-            <Text style={styles.ghostText}>{t.swapMax}</Text>
+          <TouchableOpacity style={xs.ghostButton} onPress={setMax}>
+            <Text style={xs.ghostText}>{t.swapMax}</Text>
           </TouchableOpacity>
         </View>
-        {payIsEth && <Text style={styles.sub}>{t.swapKeepGas}</Text>}
+        {payIsEth && <Text style={xs.sub}>{t.swapKeepGas}</Text>}
       </View>
 
       <TouchableOpacity onPress={flip} style={{ alignItems: 'center', marginVertical: -2 }}>
-        <Text style={{ fontSize: 22, color: colors.accent }}>⇅</Text>
+        <Text style={{ fontSize: 22, color: xColors.accent }}>⇅</Text>
       </TouchableOpacity>
 
-      <View style={styles.card}>
-        <Text style={styles.sub}>{t.swapReceive}（{receiveSymbol}）</Text>
-        <Text style={{ fontSize: 20, fontWeight: '700', color: colors.ink }}>
+      <View style={xs.card}>
+        <Text style={xs.sub}>{t.swapReceive}（{receiveSymbol}）</Text>
+        <Text style={{ fontSize: 20, fontWeight: '700', color: xColors.text }}>
           {amountIn <= 0n
             ? '0'
             : quoting
@@ -251,7 +301,7 @@ export default function Swap({ lang, wallet, preset }: Props) {
                 : '—'}
         </Text>
         {quoted != null && amountIn > 0n && (
-          <Text style={styles.sub}>
+          <Text style={xs.sub}>
             {t.swapRate}：1 ETH ={' '}
             {payIsEth
               ? fmtCaw((quoted * 10n ** 18n) / amountIn)
@@ -261,36 +311,36 @@ export default function Swap({ lang, wallet, preset }: Props) {
         )}
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.sub}>{t.swapSlippage}</Text>
+      <View style={xs.card}>
+        <Text style={xs.sub}>{t.swapSlippage}</Text>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           {SLIPPAGES.map((v) => (
             <TouchableOpacity
               key={v}
-              style={v === slippage ? styles.button : styles.ghostButton}
+              style={v === slippage ? xs.button : xs.ghostButton}
               onPress={() => setSlippage(v)}
             >
-              <Text style={v === slippage ? styles.buttonText : styles.ghostText}>{v}%</Text>
+              <Text style={v === slippage ? xs.buttonText : xs.ghostText}>{v}%</Text>
             </TouchableOpacity>
           ))}
         </View>
         {insufficient && (
-          <Text style={[styles.sub, { color: colors.danger }]}>{t.swapInsufficient}</Text>
+          <Text style={[xs.sub, { color: xColors.danger }]}>{t.swapInsufficient}</Text>
         )}
-        {amountIn <= 0n && <Text style={styles.sub}>{t.swapEnterAmount}</Text>}
+        {amountIn <= 0n && <Text style={xs.sub}>{t.swapEnterAmount}</Text>}
       </View>
 
       <TouchableOpacity
         style={[
-          styles.button,
+          xs.button,
           { opacity: amountIn > 0n && quoted != null && !insufficient ? 1 : 0.45 },
         ]}
         disabled={!(amountIn > 0n && quoted != null && !insufficient)}
         onPress={() => setPhase('review')}
       >
-        <Text style={styles.buttonText}>{t.swapReview}</Text>
+        <Text style={xs.buttonText}>{t.swapReview}</Text>
       </TouchableOpacity>
-      <Text style={styles.sub}>{t.swapRoute}</Text>
+      <Text style={xs.sub}>{t.swapRoute}</Text>
     </ScrollView>
   );
 }

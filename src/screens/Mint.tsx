@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -9,7 +10,57 @@ import {
 } from 'react-native';
 import { ethers } from 'ethers';
 
-import { colors, styles } from '../theme';
+import { xColors } from '../theme';
+// X-style local styles for the v0.2.2 reskin of the tool screens: same
+// tokens and shapes as the social surfaces (Home / Compose /
+// Notifications) — white background, #EFF3F4-bordered cards, accent
+// pill buttons, #CFD9DE-outlined secondary pills and inputs.
+const xs = StyleSheet.create({
+  root: { flex: 1, backgroundColor: xColors.bg },
+  content: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 24, gap: 12 },
+  card: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: xColors.border,
+    borderRadius: 16,
+    padding: 16,
+    gap: 6,
+  },
+  h1: { fontSize: 22, fontWeight: '800', color: xColors.text },
+  title: { fontSize: 16, fontWeight: '700', color: xColors.text },
+  body: { fontSize: 14, color: xColors.text, lineHeight: 20 },
+  sub: { fontSize: 13, color: xColors.sub, lineHeight: 18 },
+  input: {
+    backgroundColor: '#ffffff',
+    borderColor: xColors.divider,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: xColors.text,
+  },
+  button: {
+    backgroundColor: xColors.accent,
+    borderRadius: 999,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  buttonText: { color: '#ffffff', fontSize: 15, fontWeight: '700' },
+  ghostButton: {
+    borderColor: xColors.divider,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+  },
+  ghostText: { color: xColors.text, fontSize: 15, fontWeight: '600' },
+  dangerText: { color: xColors.danger, fontSize: 14, fontWeight: '600' },
+});
+
 import { STRINGS, fmt, type Lang } from '../i18n';
 import NameCard from '../components/NameCard';
 import { MINT_DEPOSIT_CAW, type NetworkPreset } from '../config';
@@ -133,10 +184,10 @@ export default function Mint({ lang, wallet, preset, names, onMinted }: Props) {
 
   if (!supported) {
     return (
-      <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-        <View style={styles.card}>
-          <Text style={styles.title}>{t.getNameTitle}</Text>
-          <Text style={styles.sub}>{fmt(t.mintUnsupported, { label: preset.label })}</Text>
+      <ScrollView style={xs.root} contentContainerStyle={xs.content}>
+        <View style={xs.card}>
+          <Text style={xs.title}>{t.getNameTitle}</Text>
+          <Text style={xs.sub}>{fmt(t.mintUnsupported, { label: preset.label })}</Text>
         </View>
       </ScrollView>
     );
@@ -144,22 +195,22 @@ export default function Mint({ lang, wallet, preset, names, onMinted }: Props) {
 
   if (MINT_MAINTENANCE) {
     return (
-      <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-        <View style={styles.card}>
-          <Text style={styles.title}>{t.myNames}</Text>
+      <ScrollView style={xs.root} contentContainerStyle={xs.content}>
+        <View style={xs.card}>
+          <Text style={xs.title}>{t.myNames}</Text>
           {names.length === 0 ? (
-            <Text style={styles.sub}>{t.noNamesYetMint}</Text>
+            <Text style={xs.sub}>{t.noNamesYetMint}</Text>
           ) : (
             names.map((n) => <NameCard key={n.tokenId} name={n} lang={lang} />)
           )}
-          <Text style={styles.sub}>
+          <Text style={xs.sub}>
             {t.balanceLabel}：{balances ? `${Number(ethers.formatEther(balances.eth)).toFixed(5)} ETH` : '…'}
             {balances?.caw != null ? ` / ${fmtCaw(balances.caw)} CAW` : ''}
           </Text>
         </View>
-        <View style={styles.card}>
-          <Text style={styles.title}>🛠 {t.mintMaintTitle}</Text>
-          <Text style={styles.sub}>{t.mintMaintBody}</Text>
+        <View style={xs.card}>
+          <Text style={xs.title}>🛠 {t.mintMaintTitle}</Text>
+          <Text style={xs.sub}>{t.mintMaintBody}</Text>
         </View>
       </ScrollView>
     );
@@ -167,47 +218,47 @@ export default function Mint({ lang, wallet, preset, names, onMinted }: Props) {
 
   if (phase === 'done' && result) {
     return (
-      <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-        <View style={[styles.card, { alignItems: 'center', paddingVertical: 28 }]}>
+      <ScrollView style={xs.root} contentContainerStyle={xs.content}>
+        <View style={[xs.card, { alignItems: 'center', paddingVertical: 28 }]}>
           <Text style={{ fontSize: 40 }}>🎉</Text>
-          <Text style={styles.h1}>@{result.name}</Text>
-          <Text style={styles.sub}>{fmt(t.doneName, { id: result.tokenId })}</Text>
-          <Text style={[styles.sub, { textAlign: 'center' }]}>{t.doneNote}</Text>
+          <Text style={xs.h1}>@{result.name}</Text>
+          <Text style={xs.sub}>{fmt(t.doneName, { id: result.tokenId })}</Text>
+          <Text style={[xs.sub, { textAlign: 'center' }]}>{t.doneNote}</Text>
         </View>
         <TouchableOpacity
-          style={styles.button}
+          style={xs.button}
           onPress={() => {
             setResult(null);
             setInput('');
             setPhase('idle');
           }}
         >
-          <Text style={styles.buttonText}>{t.anotherName}</Text>
+          <Text style={xs.buttonText}>{t.anotherName}</Text>
         </TouchableOpacity>
       </ScrollView>
     );
   }
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-      <View style={styles.card}>
-        <Text style={styles.title}>{t.myNames}</Text>
+    <ScrollView style={xs.root} contentContainerStyle={xs.content}>
+      <View style={xs.card}>
+        <Text style={xs.title}>{t.myNames}</Text>
         {names.length === 0 ? (
-          <Text style={styles.sub}>{t.noNamesYetMint}</Text>
+          <Text style={xs.sub}>{t.noNamesYetMint}</Text>
         ) : (
           names.map((n) => <NameCard key={n.tokenId} name={n} lang={lang} />)
         )}
-        <Text style={styles.sub}>
+        <Text style={xs.sub}>
           {t.balanceLabel}：{balances ? `${Number(ethers.formatEther(balances.eth)).toFixed(5)} ETH` : '…'}
           {balances?.caw != null ? ` / ${fmtCaw(balances.caw)} CAW` : ''}
         </Text>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.title}>{t.getNameTitle}</Text>
-        <Text style={styles.sub}>{t.mintIntro}</Text>
+      <View style={xs.card}>
+        <Text style={xs.title}>{t.getNameTitle}</Text>
+        <Text style={xs.sub}>{t.mintIntro}</Text>
         <TextInput
-          style={[styles.input, { fontSize: 18 }]}
+          style={[xs.input, { fontSize: 18 }]}
           autoCapitalize="none"
           autoCorrect={false}
           placeholder={t.namePlaceholder}
@@ -217,43 +268,43 @@ export default function Mint({ lang, wallet, preset, names, onMinted }: Props) {
 
         {phase === 'checking' && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <ActivityIndicator color={colors.accent} />
-            <Text style={styles.sub}>{t.checking}</Text>
+            <ActivityIndicator color={xColors.accent} />
+            <Text style={xs.sub}>{t.checking}</Text>
           </View>
         )}
 
         {check && !check.valid && (
-          <Text style={[styles.sub, { color: colors.danger }]}>{t.nameInvalid}</Text>
+          <Text style={[xs.sub, { color: xColors.danger }]}>{t.nameInvalid}</Text>
         )}
         {check && check.valid && check.taken && (
-          <Text style={[styles.sub, { color: colors.danger }]}>
+          <Text style={[xs.sub, { color: xColors.danger }]}>
             {fmt(t.nameTaken, { name, id: check.tokenId ?? 0 })}
           </Text>
         )}
         {check && check.valid && !check.taken && (
           <View style={{ gap: 4 }}>
-            <Text style={[styles.body, { color: colors.accentDark, fontWeight: '700' }]}>
+            <Text style={[xs.body, { color: xColors.accent, fontWeight: '700' }]}>
               {fmt(t.nameAvailable, { name })}
             </Text>
-            <Text style={styles.sub}>{fmt(t.burnLabel, { n: fmtCaw(check.burn) })}</Text>
-            <Text style={styles.sub}>{fmt(t.depositLabel, { n: fmtCaw(DEPOSIT) })}</Text>
-            <Text style={styles.sub}>
+            <Text style={xs.sub}>{fmt(t.burnLabel, { n: fmtCaw(check.burn) })}</Text>
+            <Text style={xs.sub}>{fmt(t.depositLabel, { n: fmtCaw(DEPOSIT) })}</Text>
+            <Text style={xs.sub}>
               {fee != null ? fmt(t.syncFeeLabel, { n: Number(ethers.formatEther(fee)).toFixed(5) }) : '…'}
               {t.syncFeeNote}
             </Text>
             {cawShort && (
-              <Text style={[styles.sub, { color: colors.danger }]}>
+              <Text style={[xs.sub, { color: xColors.danger }]}>
                 {fmt(t.cawShort, { n: fmtCaw(needCaw) })}
               </Text>
             )}
           </View>
         )}
 
-        {error && <Text style={[styles.sub, { color: colors.danger }]}>{error}</Text>}
+        {error && <Text style={[xs.sub, { color: xColors.danger }]}>{error}</Text>}
 
         <TouchableOpacity
           style={[
-            styles.button,
+            xs.button,
             {
               opacity:
                 check && check.valid && !check.taken && !cawShort && !busy ? 1 : 0.45,
@@ -262,7 +313,7 @@ export default function Mint({ lang, wallet, preset, names, onMinted }: Props) {
           disabled={!(check && check.valid && !check.taken && !cawShort) || busy}
           onPress={doMint}
         >
-          <Text style={styles.buttonText}>
+          <Text style={xs.buttonText}>
             {phase === 'approving'
               ? t.stepApproving
               : phase === 'minting'
@@ -272,7 +323,7 @@ export default function Mint({ lang, wallet, preset, names, onMinted }: Props) {
                   : t.mintButton}
           </Text>
         </TouchableOpacity>
-        <Text style={styles.sub}>{t.mintNote}</Text>
+        <Text style={xs.sub}>{t.mintNote}</Text>
       </View>
     </ScrollView>
   );
