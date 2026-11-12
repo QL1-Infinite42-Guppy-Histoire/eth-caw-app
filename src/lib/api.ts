@@ -114,6 +114,14 @@ export interface CawItem {
   viewCount?: number;
   hasLiked?: boolean;
   hasRecawed?: boolean;
+  /** True when this item is a quote (a recaw carrying its own text). */
+  isQuote?: boolean;
+  /**
+   * For recaws/quotes: the original post this item points at, as shaped by
+   * the node (same CawItem shape). Absent on plain posts and on nodes whose
+   * payload predates the field.
+   */
+  originalCaw?: CawItem;
   user: {
     tokenId: number;
     username: string | null;
@@ -206,6 +214,181 @@ export async function getNotifications(
     unreadCount: body.unreadCount ?? 0,
     hasMore: !!body.hasMore,
   };
+}
+
+// ---------------------------------------------------------------------------
+// v0.3.0 additive read-only endpoints (thread / profiles / search).
+// Nothing above this line was changed; these are new exports only, built on
+// the same authedFetch + node base URL as the existing reads.
+// ---------------------------------------------------------------------------
+
+export interface CawThread {
+  caw: CawItem;
+  /** Replies and quotes on the post (plain recaws are excluded upstream). */
+  comments: CawItem[];
+  hasMoreComments: boolean;
+  nextCommentCursor?: number;
+}
+
+/**
+ * Read-only: GET /api/caws/:id — one post plus its replies.
+ * Throws an error carrying `.status` (404 = no such post on this node).
+ */
+export async function getCawThread(
+  session: Session | null,
+  id: string,
+  commentCursor?: number,
+): Promise<CawThread> {
+  const q = new URLSearchParams({ commentLimit: '30' });
+  if (commentCursor != null) q.set('commentCursor', String(commentCursor));
+  const res = await authedFetch(`/api/caws/${encodeURIComponent(id)}?${q.toString()}`, session);
+  if (!res.ok) {
+    const err = new Error(`投稿の取得に失敗しました (HTTP ${res.status})`) as Error & {
+      status?: number;
+    };
+    err.status = res.status;
+    throw err;
+  }
+  const body = await res.json();
+  return {
+    caw: body.caw,
+    comments: body.comments ?? [],
+    hasMoreComments: !!body.hasMoreComments,
+    nextCommentCursor: body.nextCommentCursor,
+  };
+}
+
+export interface UserProfileData {
+  tokenId: number;
+  username: string;
+  displayName: string | null;
+  bio: string | null;
+  address: string;
+  avatarUrl?: string | null;
+  coverPhotoUrl?: string | null;
+  followerCount: number;
+  followingCount: number;
+  cawCount: number;
+  isFollowing?: boolean;
+}
+
+/** Read-only: GET /api/users/:username — profile header data + counts. */
+export async function getUserProfile(
+  session: Session | null,
+  username: string,
+): Promise<UserProfileData> {
+  const res = await authedFetch(`/api/users/${encodeURIComponent(username)}`, session);
+  if (!res.ok) {
+    const err = new Error(`プロフィールの取得に失敗しました (HTTP ${res.status})`) as Error & {
+      status?: number;
+    };
+    err.status = res.status;
+    throw err;
+  }
+  return (await res.json()) as UserProfileData;
+}
+
+export interface UserByToken {
+  tokenId: number;
+  username: string | null;
+  displayName: string | null;
+  address: string;
+  /**
+   * The node's cached copy of the name's on-chain deposited CAW (wei
+   * string). Null when the node's stake index has not seen a deposit —
+   * callers must treat null as "unknown", never as zero.
+   */
+  onChainStakeWei?: string | null;
+}
+
+/** Read-only: GET /api/users/by-token/:tokenId. */
+export async function getUserByToken(
+  session: Session | null,
+  tokenId: number,
+): Promise<UserByToken> {
+  const res = await authedFetch(`/api/users/by-token/${tokenId}`, session);
+  if (!res.ok) {
+    const err = new Error(`ユーザー取得に失敗しました (HTTP ${res.status})`) as Error & {
+      status?: number;
+    };
+    err.status = res.status;
+    throw err;
+  }
+  return (await res.json()) as UserByToken;
+}
+
+export type UserCawsFilter = 'posts' | 'replies' | 'liked';
+
+/**
+ * Read-only: one user's posts via GET /api/caws?user=<name>, using the
+ * node's own profile modes (posts excludes replies; replies = the user's
+ * replies; liked = posts the user has liked).
+ */
+export async function getUserCaws(
+  session: Session | null,
+  username: string,
+  filter: UserCawsFilter,
+  cursor?: string,
+): Promise<{ items: CawItem[]; nextCursor?: string }> {
+  const q = new URLSearchParams({ user: username, limit: '30' });
+  if (filter !== 'posts') q.set('filter', filter);
+  if (cursor) q.set('cursor', cursor);
+  const res = await authedFetch(`/api/caws?${q.toString()}`, session);
+  if (!res.ok) throw new Error(`投稿の取得に失敗しました (HTTP ${res.status})`);
+  const body = await res.json();
+  return { items: body.items ?? [], nextCursor: body.nextCursor };
+}
+
+export interface SearchUser {
+  tokenId: number;
+  username: string;
+  displayName: string | null;
+  avatarUrl?: string | null;
+  address?: string;
+  followerCount?: number;
+}
+
+export interface SearchResults {
+  users: SearchUser[];
+  /** Ids of matching posts (reduced upstream shape) — hydrate via getCawsByIds. */
+  cawIds: string[];
+}
+
+/**
+ * Read-only: GET /api/search?q=&type=all — the node's own search over
+ * names and post text (query must be at least 2 characters upstream).
+ */
+export async function searchAll(
+  session: Session | null,
+  query: string,
+): Promise<SearchResults> {
+  const q = new URLSearchParams({ q: query, type: 'all' });
+  const res = await authedFetch(`/api/search?${q.toString()}`, session);
+  if (!res.ok) throw new Error(`検索に失敗しました (HTTP ${res.status})`);
+  const body = await res.json();
+  return {
+    users: (body.users ?? []) as SearchUser[],
+    cawIds: ((body.caws ?? []) as { id: string }[]).map((c) => String(c.id)),
+  };
+}
+
+/**
+ * Read-only: POST /api/caws/by-ids — full post items for a set of ids,
+ * in the order requested. Used to hydrate search results so every count
+ * shown comes from the node's full payload, never from a partial one.
+ */
+export async function getCawsByIds(
+  session: Session | null,
+  ids: string[],
+): Promise<CawItem[]> {
+  if (ids.length === 0) return [];
+  const res = await authedFetch('/api/caws/by-ids', session, {
+    method: 'POST',
+    body: JSON.stringify({ ids: ids.map((id) => Number(id)).filter((n) => Number.isFinite(n)) }),
+  });
+  if (!res.ok) throw new Error(`投稿の取得に失敗しました (HTTP ${res.status})`);
+  const body = await res.json();
+  return (body.items ?? []) as CawItem[];
 }
 
 export async function submitAction(

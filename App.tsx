@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ethers } from 'ethers';
@@ -13,7 +13,6 @@ import {
   MAINNET_PRESET,
   PRESETS,
   STORAGE_KEYS,
-  TESTNET_PRESET,
   type NetworkPreset,
 } from './src/config';
 import { colors, styles, xColors } from './src/theme';
@@ -25,11 +24,13 @@ import {
   saveSession,
   setNodeUrl,
   verifyWallet,
+  type CawItem,
   type Session,
 } from './src/lib/api';
 import { fetchOwnedNames, type OwnedName } from './src/lib/mint';
 import { pickRegistryNode } from './src/lib/nodes';
-import { BellIcon, BookmarkIcon } from './src/components/icons';
+import { BellIcon, HomeIcon, PersonIcon, SearchIcon } from './src/components/icons';
+import type { PostUserRef } from './src/components/PostCell';
 import Onboarding from './src/screens/Onboarding';
 import Mint from './src/screens/Mint';
 import Swap from './src/screens/Swap';
@@ -40,18 +41,31 @@ import Bookmarks from './src/screens/Bookmarks';
 import Settings from './src/screens/Settings';
 import NodeScreen from './src/screens/Node';
 import Send from './src/screens/Send';
+import Thread from './src/screens/Thread';
+import UserProfile from './src/screens/UserProfile';
+import Search from './src/screens/Search';
+import ProfileMenu from './src/screens/ProfileMenu';
+import WalletBalances from './src/screens/WalletBalances';
 
 type Phase = 'boot' | 'onboarding' | 'locked' | 'main';
-type Tab =
-  | 'home'
-  | 'mint'
-  | 'swap'
-  | 'send'
-  | 'compose'
-  | 'notifications'
-  | 'bookmarks'
-  | 'node'
-  | 'settings';
+
+// v0.3.0 navigation: four bottom tabs (Home / Search / Notifications /
+// Profile). Everything else — Compose, Thread, user profiles, and the
+// tool screens (Mint / Swap / Send / Server / Settings / Bookmarks /
+// Wallet) — is an overlay pushed on a small stack above the tab content,
+// so Back returns to where the user was.
+type Tab = 'home' | 'search' | 'notifications' | 'profile';
+type Overlay =
+  | { kind: 'compose' }
+  | { kind: 'thread'; item: CawItem }
+  | { kind: 'user'; tokenId: number; username: string | null }
+  | { kind: 'bookmarks' }
+  | { kind: 'wallet' }
+  | { kind: 'mint' }
+  | { kind: 'swap' }
+  | { kind: 'send' }
+  | { kind: 'node' }
+  | { kind: 'settings' };
 
 function AppInner() {
   const [phase, setPhase] = useState<Phase>('boot');
@@ -59,6 +73,7 @@ function AppInner() {
   const insets = useSafeAreaInsets();
   const t = STRINGS[lang];
   const [tab, setTab] = useState<Tab>('home');
+  const [stack, setStack] = useState<Overlay[]>([]);
   const [preset, setPreset] = useState<NetworkPreset>(MAINNET_PRESET);
   const [names, setNames] = useState<OwnedName[]>([]);
   const [nodeUrl, setNodeUrlState] = useState('');
@@ -69,6 +84,18 @@ function AppInner() {
   const senderId = session?.authorizedTokenIds[0] ?? null;
   const langRef = React.useRef(lang);
   langRef.current = lang;
+
+  const push = useCallback((o: Overlay) => setStack((s) => [...s, o]), []);
+  const pop = useCallback(() => setStack((s) => s.slice(0, -1)), []);
+  const goTab = useCallback((next: Tab) => {
+    setStack([]);
+    setTab(next);
+  }, []);
+  const openPost = useCallback((item: CawItem) => push({ kind: 'thread', item }), [push]);
+  const openUser = useCallback(
+    (user: PostUserRef) => push({ kind: 'user', tokenId: user.tokenId, username: user.username }),
+    [push],
+  );
 
   const connect = useCallback(
     async (w: ethers.HDNodeWallet, url: string, p: NetworkPreset) => {
@@ -216,11 +243,11 @@ function AppInner() {
   }, []);
 
   const primaryName = names[0] ?? null;
-  const senderName = names.find((n) => n.tokenId === senderId)?.name ?? null;
+  const senderObj = names.find((n) => n.tokenId === senderId) ?? null;
 
-  // Unread-notification dot for the header bell. Read once per session /
-  // tab change from the notifications fetch (its response carries
-  // unreadCount) — deliberately no polling.
+  // Unread-notification dot for the Notifications tab. Read once per
+  // session / tab change from the notifications fetch (its response
+  // carries unreadCount) — deliberately no polling.
   const [unreadCount, setUnreadCount] = useState<number | null>(null);
   const refreshUnread = useCallback(async () => {
     if (!session || senderId == null) {
@@ -298,194 +325,262 @@ function AppInner() {
     );
   }
 
+  const onCompose = () => {
+    if (!session || senderId == null) {
+      Alert.alert(t.nameRequiredTitle, t.nameRequiredMsgPost);
+      return;
+    }
+    push({ kind: 'compose' });
+  };
+
+  const topOverlay = stack[stack.length - 1] ?? null;
+
+  const renderOverlay = (o: Overlay) => {
+    switch (o.kind) {
+      case 'compose':
+        return session && senderId != null ? (
+          <Compose
+            lang={lang}
+            wallet={wallet}
+            preset={preset}
+            session={session}
+            senderId={senderId}
+            senderName={senderObj?.name ?? null}
+            senderImageSvg={senderObj?.imageSvg ?? null}
+            onDone={pop}
+          />
+        ) : null;
+      case 'thread':
+        return (
+          <Thread
+            lang={lang}
+            wallet={wallet}
+            preset={preset}
+            session={session}
+            senderId={senderId}
+            senderName={senderObj}
+            item={o.item}
+            onBack={pop}
+            onOpenPost={openPost}
+            onOpenUser={openUser}
+          />
+        );
+      case 'user':
+        return (
+          <UserProfile
+            lang={lang}
+            wallet={wallet}
+            preset={preset}
+            session={session}
+            senderId={senderId}
+            tokenId={o.tokenId}
+            username={o.username}
+            onBack={pop}
+            onOpenPost={openPost}
+            onOpenUser={openUser}
+          />
+        );
+      case 'bookmarks':
+        return (
+          <Bookmarks
+            lang={lang}
+            wallet={wallet}
+            preset={preset}
+            session={session}
+            senderId={senderId}
+            onClose={pop}
+            onOpenPost={openPost}
+            onOpenUser={openUser}
+          />
+        );
+      case 'wallet':
+        return (
+          <WalletBalances lang={lang} wallet={wallet} preset={preset} names={names} onClose={pop} />
+        );
+      case 'mint':
+        return (
+          <Mint
+            lang={lang}
+            wallet={wallet}
+            preset={preset}
+            names={names}
+            onMinted={() => void refreshNames(wallet, preset)}
+          />
+        );
+      case 'swap':
+        return <Swap lang={lang} wallet={wallet} preset={preset} />;
+      case 'send':
+        return <Send lang={lang} wallet={wallet} preset={preset} />;
+      case 'node':
+        return (
+          <NodeScreen
+            lang={lang}
+            preset={preset}
+            myNodeUrl={myNodeUrl}
+            connectedUrl={nodeUrl}
+            onUseNode={onUseNode}
+            onReleaseNode={onReleaseNode}
+          />
+        );
+      case 'settings':
+        return (
+          <Settings
+            lang={lang}
+            onLangChange={onLangChange}
+            preset={preset}
+            nodeUrl={nodeUrl}
+            senderName={primaryName?.name ?? null}
+            senderId={primaryName?.tokenId ?? senderId}
+            names={names}
+            onPresetChange={onPresetChange}
+            onNodeUrlChange={onNodeUrlChange}
+            onOpenNode={() => push({ kind: 'node' })}
+            onWalletDeleted={() => {
+              setWallet(null);
+              setSession(null);
+              setStack([]);
+              setPhase('onboarding');
+            }}
+          />
+        );
+    }
+  };
+
+  const showHeader = tab === 'home' || tab === 'search';
+
   return (
     <View style={styles.root}>
       <StatusBar style="dark" />
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          paddingHorizontal: 16,
-          paddingTop: insets.top + 8,
-          paddingBottom: 8,
-          backgroundColor: xColors.bg,
-          borderBottomWidth: 1,
-          borderBottomColor: xColors.border,
-        }}
-      >
-        <View style={{ flex: 1, alignItems: 'flex-start' }}>
-          {primaryName?.imageSvg ? (
-            <View style={{ width: 32, height: 32, borderRadius: 16, overflow: 'hidden' }}>
-              <SvgXml xml={primaryName.imageSvg} width={32} height={32} />
+      <View style={{ flex: 1, backgroundColor: xColors.bg }}>
+        {showHeader && (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: 16,
+              paddingTop: insets.top + 8,
+              paddingBottom: 8,
+              backgroundColor: xColors.bg,
+              borderBottomWidth: 1,
+              borderBottomColor: xColors.border,
+            }}
+          >
+            <View style={{ flex: 1, alignItems: 'flex-start' }}>
+              {primaryName?.imageSvg ? (
+                <View style={{ width: 32, height: 32, borderRadius: 16, overflow: 'hidden' }}>
+                  <SvgXml xml={primaryName.imageSvg} width={32} height={32} />
+                </View>
+              ) : primaryName ? (
+                <View
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
+                    backgroundColor: xColors.accent,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>
+                    {primaryName.name.replace(/^#/, '').charAt(0).toUpperCase() || 'C'}
+                  </Text>
+                </View>
+              ) : (
+                <Image
+                  source={require('./assets/icon.png')}
+                  style={{ width: 32, height: 32, borderRadius: 16 }}
+                />
+              )}
             </View>
-          ) : primaryName ? (
-            <View
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 16,
-                backgroundColor: xColors.accent,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>
-                {primaryName.name.replace(/^#/, '').charAt(0).toUpperCase() || 'C'}
+            <Text style={{ fontSize: 20, fontWeight: '800', color: xColors.text }}>CAW</Text>
+            <View style={{ flex: 1, alignItems: 'flex-end' }}>
+              <Text style={{ fontSize: 11, fontWeight: primaryName ? '700' : '400', color: primaryName ? xColors.text : xColors.sub }}>
+                {primaryName ? `@${primaryName.name}` : session ? t.headerNoName : t.headerWaiting}
               </Text>
-            </View>
-          ) : (
-            <Image
-              source={require('./assets/icon.png')}
-              style={{ width: 32, height: 32, borderRadius: 16 }}
-            />
-          )}
-        </View>
-        <Text style={{ fontSize: 20, fontWeight: '800', color: xColors.text }}>CAW</Text>
-        <View
-          style={{
-            flex: 1,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-            gap: 13,
-          }}
-        >
-          <TouchableOpacity onPress={() => setTab('notifications')} hitSlop={8} style={{ padding: 2 }}>
-            <BellIcon size={21} color={tab === 'notifications' ? xColors.text : xColors.sub} />
-            {unreadCount != null && unreadCount > 0 && (
               <View
                 style={{
-                  position: 'absolute',
-                  top: 0,
-                  right: 0,
-                  width: 9,
-                  height: 9,
-                  borderRadius: 5,
-                  backgroundColor: xColors.accent,
-                  borderWidth: 1.5,
-                  borderColor: xColors.bg,
+                  marginTop: 2,
+                  borderWidth: 1,
+                  borderColor: xColors.border,
+                  borderRadius: 999,
+                  paddingHorizontal: 7,
+                  paddingVertical: 2,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
                 }}
-              />
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setTab('bookmarks')} hitSlop={8} style={{ padding: 2 }}>
-            <BookmarkIcon
-              size={19}
-              color={tab === 'bookmarks' ? xColors.text : xColors.sub}
-              filled={tab === 'bookmarks'}
-            />
-          </TouchableOpacity>
-          <View style={{ alignItems: 'flex-end' }}>
-            <Text style={{ fontSize: 11, fontWeight: primaryName ? '700' : '400', color: primaryName ? xColors.text : xColors.sub }}>
-              {primaryName ? `@${primaryName.name}` : session ? t.headerNoName : t.headerWaiting}
-            </Text>
-            <View
-              style={{
-                marginTop: 2,
-                borderWidth: 1,
-                borderColor: xColors.border,
-                borderRadius: 999,
-                paddingHorizontal: 7,
-                paddingVertical: 1,
-              }}
-            >
-              <Text style={{ fontSize: 10, color: session ? xColors.accent : xColors.sub }}>
-                {session ? `● ${t.chipConnected}` : `○ ${t.headerWaiting}`}
-              </Text>
+              >
+                <View
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: 3,
+                    backgroundColor: session ? xColors.recaw : xColors.divider,
+                  }}
+                />
+                <Text style={{ fontSize: 10, color: session ? xColors.accent : xColors.sub }}>
+                  {session ? t.chipConnected : t.headerWaiting}
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
-      </View>
+        )}
 
-      {tab === 'home' && (
-        <Home
-          lang={lang}
-          wallet={wallet}
-          preset={preset}
-          session={session}
-          senderId={senderId}
-          names={names}
-          onGoMint={() => setTab('mint')}
-          onGoNode={() => setTab('node')}
-          onGoBookmarks={() => setTab('bookmarks')}
-          onCompose={() => {
-            if (!session || senderId == null) {
-              Alert.alert(t.nameRequiredTitle, t.nameRequiredMsgPost);
-              return;
-            }
-            setTab('compose');
-          }}
-        />
-      )}
-      {tab === 'compose' && session && senderId != null && (
-        <Compose
-          lang={lang}
-          wallet={wallet}
-          preset={preset}
-          session={session}
-          senderId={senderId}
-          senderName={senderName}
-          onDone={() => setTab('home')}
-        />
-      )}
-      {tab === 'notifications' && (
-        <Notifications
-          lang={lang}
-          session={session}
-          senderId={senderId}
-          onClose={() => setTab('home')}
-        />
-      )}
-      {tab === 'bookmarks' && (
-        <Bookmarks
-          lang={lang}
-          wallet={wallet}
-          preset={preset}
-          session={session}
-          senderId={senderId}
-          onClose={() => setTab('home')}
-        />
-      )}
-      {tab === 'mint' && (
-        <Mint
-          lang={lang}
-          wallet={wallet}
-          preset={preset}
-          names={names}
-          onMinted={() => void refreshNames(wallet, preset)}
-        />
-      )}
-      {tab === 'swap' && <Swap lang={lang} wallet={wallet} preset={preset} />}
-      {tab === 'send' && <Send lang={lang} wallet={wallet} preset={preset} />}
-      {tab === 'node' && (
-        <NodeScreen
-          lang={lang}
-          preset={preset}
-          myNodeUrl={myNodeUrl}
-          connectedUrl={nodeUrl}
-          onUseNode={onUseNode}
-          onReleaseNode={onReleaseNode}
-        />
-      )}
-      {tab === 'settings' && (
-        <Settings
-          lang={lang}
-          onLangChange={onLangChange}
-          preset={preset}
-          nodeUrl={nodeUrl}
-          senderName={primaryName?.name ?? null}
-          senderId={primaryName?.tokenId ?? senderId}
-          names={names}
-          onPresetChange={onPresetChange}
-          onNodeUrlChange={onNodeUrlChange}
-          onOpenNode={() => setTab('node')}
-          onWalletDeleted={() => {
-            setWallet(null);
-            setSession(null);
-            setPhase('onboarding');
-          }}
-        />
-      )}
+        {tab === 'home' && (
+          <Home
+            lang={lang}
+            wallet={wallet}
+            preset={preset}
+            session={session}
+            senderId={senderId}
+            onGoNode={() => push({ kind: 'node' })}
+            onCompose={onCompose}
+            onOpenPost={openPost}
+            onOpenUser={openUser}
+          />
+        )}
+        {tab === 'search' && (
+          <Search
+            lang={lang}
+            wallet={wallet}
+            preset={preset}
+            session={session}
+            senderId={senderId}
+            onOpenPost={openPost}
+            onOpenUser={openUser}
+          />
+        )}
+        {tab === 'notifications' && (
+          <Notifications lang={lang} session={session} senderId={senderId} />
+        )}
+        {tab === 'profile' && (
+          <ProfileMenu
+            lang={lang}
+            wallet={wallet}
+            preset={preset}
+            session={session}
+            names={names}
+            onOpenWallet={() => push({ kind: 'wallet' })}
+            onOpenNames={() => push({ kind: 'mint' })}
+            onOpenSwap={() => push({ kind: 'swap' })}
+            onOpenSend={() => push({ kind: 'send' })}
+            onOpenBookmarks={() => push({ kind: 'bookmarks' })}
+            onOpenServer={() => push({ kind: 'node' })}
+            onOpenSettings={() => push({ kind: 'settings' })}
+          />
+        )}
+
+        {topOverlay && (
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: xColors.bg, paddingTop: insets.top },
+            ]}
+          >
+            {renderOverlay(topOverlay)}
+          </View>
+        )}
+      </View>
 
       <View
         style={{
@@ -499,36 +594,73 @@ function AppInner() {
       >
         {(
           [
-            ['home', '⌂', t.tabHome],
-            ['mint', '＠', t.tabMint],
-            ['swap', '⇄', t.tabSwap],
-            ['send', '➤', t.tabSend],
-            ['node', '▦', t.tabNode],
-            ['settings', '⚙', t.tabSettings],
-          ] as [Tab, string, string][]
-        ).map(([key, glyph, label]) => (
-          <TouchableOpacity key={key} style={{ flex: 1, alignItems: 'center' }} onPress={() => setTab(key)}>
-            <Text
-              style={{
-                fontSize: 19,
-                lineHeight: 23,
-                color: tab === key ? xColors.text : xColors.sub,
-                fontWeight: tab === key ? '700' : '400',
-              }}
+            ['home', t.tabHome],
+            ['search', t.tabSearch],
+            ['notifications', t.tabNotif],
+            ['profile', t.tabProfile],
+          ] as [Tab, string][]
+        ).map(([key, label]) => {
+          const active = tab === key;
+          const color = active ? xColors.text : xColors.sub;
+          const icon =
+            key === 'home' ? (
+              <HomeIcon size={23} color={color} filled={active} />
+            ) : key === 'search' ? (
+              <SearchIcon size={23} color={color} />
+            ) : key === 'notifications' ? (
+              <BellIcon size={23} color={color} filled={active} />
+            ) : (
+              <PersonIcon size={23} color={color} filled={active} />
+            );
+          return (
+            <TouchableOpacity
+              key={key}
+              style={{ flex: 1, alignItems: 'center', paddingTop: 2 }}
+              onPress={() => goTab(key)}
             >
-              {glyph}
-            </Text>
-            <Text
-              style={{
-                fontSize: 10,
-                color: tab === key ? xColors.text : xColors.sub,
-                fontWeight: tab === key ? '700' : '400',
-              }}
-            >
-              {label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              {tab === key && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: -8,
+                    height: 3,
+                    width: 48,
+                    borderRadius: 2,
+                    backgroundColor: xColors.accent,
+                  }}
+                />
+              )}
+              <View>
+                {icon}
+                {key === 'notifications' && unreadCount != null && unreadCount > 0 && (
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: -1,
+                      right: -2,
+                      width: 9,
+                      height: 9,
+                      borderRadius: 5,
+                      backgroundColor: xColors.accent,
+                      borderWidth: 1.5,
+                      borderColor: xColors.bg,
+                    }}
+                  />
+                )}
+              </View>
+              <Text
+                style={{
+                  fontSize: 10,
+                  color,
+                  fontWeight: active ? '700' : '400',
+                  marginTop: 2,
+                }}
+              >
+                {label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );

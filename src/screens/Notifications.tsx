@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   RefreshControl,
   Text,
   TouchableOpacity,
@@ -13,69 +12,62 @@ import { xColors } from '../theme';
 import { getNotifications, type AppNotification, type Session } from '../lib/api';
 import { STRINGS, fmt, type Lang } from '../i18n';
 import { timeLabel } from '../components/PostCell';
+import UserAvatar from '../components/UserAvatar';
+import {
+  BellIcon,
+  CloseIcon,
+  HeartIcon,
+  PersonIcon,
+  RecawIcon,
+  ReplyIcon,
+  ViewsIcon,
+} from '../components/icons';
 
 interface Props {
   lang: Lang;
   session: Session | null;
   senderId: number | null;
-  onClose: () => void;
+  /** When rendered as an overlay (legacy), a close button is shown. */
+  onClose?: () => void;
 }
 
-const AVATAR_COLORS = ['#1d9bf0', '#794bc4', '#f91880', '#00ba7c', '#ff7a00', '#0f7b6c'];
-
-function actorAvatarColor(seed: string): string {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  return AVATAR_COLORS[h % AVATAR_COLORS.length];
-}
-
-function ActorAvatar({ n }: { n: AppNotification }) {
-  const a = n.actor;
-  if (a?.avatarUrl) {
-    return <Image source={{ uri: a.avatarUrl }} style={{ width: 36, height: 36, borderRadius: 18 }} />;
-  }
-  const label = a?.displayName ?? a?.username ?? 'C';
+function TypeBadge({ type }: { type: string }) {
+  const spec = (() => {
+    switch (type) {
+      case 'LIKE':
+        return { bg: '#fde7f1', icon: <HeartIcon size={16} color={xColors.like} filled /> };
+      case 'REPOST':
+        return { bg: '#e2f5ec', icon: <RecawIcon size={16} color={xColors.recaw} /> };
+      case 'QUOTE':
+        return { bg: '#e2f5ec', icon: <RecawIcon size={16} color={xColors.recaw} /> };
+      case 'FOLLOW':
+        return { bg: '#e1eefb', icon: <PersonIcon size={16} color={xColors.accent} /> };
+      case 'MENTION':
+        return { bg: '#e1eefb', icon: <ReplyIcon size={16} color={xColors.accent} /> };
+      case 'REPLY':
+        return { bg: '#e1eefb', icon: <ReplyIcon size={16} color={xColors.accent} /> };
+      case 'VOTE':
+        return { bg: '#eef3f4', icon: <ViewsIcon size={16} color={xColors.sub} /> };
+      case 'ACTION_FAILED':
+        return { bg: '#fdecec', icon: <BellIcon size={16} color={xColors.danger} /> };
+      default:
+        return { bg: '#eef3f4', icon: <BellIcon size={16} color={xColors.sub} /> };
+    }
+  })();
   return (
     <View
       style={{
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: actorAvatarColor(a ? `${a.username ?? ''}:${a.tokenId}` : 'caw'),
+        width: 30,
+        height: 30,
+        borderRadius: 8,
+        backgroundColor: spec.bg,
         alignItems: 'center',
         justifyContent: 'center',
       }}
     >
-      <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>
-        {(label.charAt(0) || 'C').toUpperCase()}
-      </Text>
+      {spec.icon}
     </View>
   );
-}
-
-function typeGlyph(type: string): { glyph: string; color: string } {
-  switch (type) {
-    case 'LIKE':
-      return { glyph: '♥', color: xColors.like };
-    case 'REPOST':
-      return { glyph: '↻', color: xColors.recaw };
-    case 'FOLLOW':
-      return { glyph: '👤', color: xColors.accent };
-    case 'MENTION':
-      return { glyph: '@', color: xColors.accent };
-    case 'REPLY':
-      return { glyph: '💬', color: xColors.accent };
-    case 'QUOTE':
-      return { glyph: '❝', color: xColors.accent };
-    case 'TIP':
-      return { glyph: '🪙', color: xColors.sub };
-    case 'VOTE':
-      return { glyph: '📊', color: xColors.sub };
-    case 'ACTION_FAILED':
-      return { glyph: '⚠', color: xColors.danger };
-    default:
-      return { glyph: '🔔', color: xColors.sub };
-  }
 }
 
 export default function Notifications({ lang, session, senderId, onClose }: Props) {
@@ -141,8 +133,8 @@ export default function Notifications({ lang, session, senderId, onClose }: Prop
   };
 
   const renderItem = ({ item }: { item: AppNotification }) => {
-    const { glyph, color } = typeGlyph(item.type);
     const expanded = expandedId === item.id;
+    const a = item.actor;
     return (
       <TouchableOpacity
         onPress={() => setExpandedId(expanded ? null : item.id)}
@@ -156,10 +148,13 @@ export default function Notifications({ lang, session, senderId, onClose }: Prop
           backgroundColor: xColors.bg,
         }}
       >
-        <View style={{ width: 28, alignItems: 'center', paddingTop: 2 }}>
-          <Text style={{ fontSize: 17, color, fontWeight: '700' }}>{glyph}</Text>
-        </View>
-        <ActorAvatar n={item} />
+        <TypeBadge type={item.type} />
+        <UserAvatar
+          label={a?.displayName ?? a?.username ?? 'C'}
+          seed={a ? `${a.username ?? ''}:${a.tokenId}` : 'caw'}
+          size={40}
+          avatarUrl={a?.avatarUrl}
+        />
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 14, color: xColors.text, lineHeight: 19 }}>{textFor(item)}</Text>
           {item.caw?.content ? (
@@ -193,15 +188,16 @@ export default function Notifications({ lang, session, senderId, onClose }: Prop
           alignItems: 'center',
           gap: 14,
           paddingHorizontal: 16,
-          paddingVertical: 10,
-          borderBottomWidth: 1,
-          borderBottomColor: xColors.border,
+          paddingTop: 14,
+          paddingBottom: 6,
         }}
       >
-        <TouchableOpacity onPress={onClose} hitSlop={8}>
-          <Text style={{ fontSize: 20, color: xColors.text }}>✕</Text>
-        </TouchableOpacity>
-        <Text style={{ fontSize: 17, fontWeight: '800', color: xColors.text }}>{t.notifTitle}</Text>
+        {onClose && (
+          <TouchableOpacity onPress={onClose} hitSlop={8}>
+            <CloseIcon size={20} color={xColors.text} />
+          </TouchableOpacity>
+        )}
+        <Text style={{ fontSize: 22, fontWeight: '800', color: xColors.text }}>{t.notifTitle}</Text>
       </View>
 
       {!session || senderId == null ? (
@@ -210,41 +206,38 @@ export default function Notifications({ lang, session, senderId, onClose }: Prop
         </Text>
       ) : (
         <>
-          <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: xColors.border }}>
+          <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingVertical: 10 }}>
             {(
               [
                 ['all', t.notifAll],
                 ['mentions', t.notifMentions],
               ] as ['all' | 'mentions', string][]
-            ).map(([key, label]) => (
-              <TouchableOpacity
-                key={key}
-                style={{ flex: 1, alignItems: 'center', paddingVertical: 12 }}
-                onPress={() => setSegment(key)}
-              >
-                <Text
+            ).map(([key, label]) => {
+              const active = segment === key;
+              return (
+                <TouchableOpacity
+                  key={key}
                   style={{
-                    fontSize: 15,
-                    color: segment === key ? xColors.text : xColors.sub,
-                    fontWeight: segment === key ? '800' : '400',
+                    flex: 1,
+                    alignItems: 'center',
+                    paddingVertical: 9,
+                    borderRadius: 999,
+                    backgroundColor: active ? xColors.text : '#eef3f4',
                   }}
+                  onPress={() => setSegment(key)}
                 >
-                  {label}
-                </Text>
-                {segment === key && (
-                  <View
+                  <Text
                     style={{
-                      position: 'absolute',
-                      bottom: 0,
-                      height: 3,
-                      width: 56,
-                      borderRadius: 2,
-                      backgroundColor: xColors.accent,
+                      fontSize: 15,
+                      color: active ? '#ffffff' : xColors.sub,
+                      fontWeight: active ? '800' : '600',
                     }}
-                  />
-                )}
-              </TouchableOpacity>
-            ))}
+                  >
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
           {loading ? (

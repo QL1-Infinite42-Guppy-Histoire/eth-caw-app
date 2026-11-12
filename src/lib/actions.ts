@@ -92,6 +92,29 @@ export function likeAction(
   });
 }
 
+/**
+ * Reply to a post (v0.3.0, additive). A reply is an ordinary post action
+ * (actionType 0) whose receiver fields point at the parent post — the
+ * exact same signed-action path as postAction/likeAction; the node
+ * resolves the parent from (receiverId, receiverCawonce) and threads the
+ * new post under it. No signing code changes.
+ */
+export function replyAction(
+  wallet: ethers.HDNodeWallet,
+  preset: NetworkPreset,
+  session: Session,
+  senderId: number,
+  parent: CawItem,
+  text: string,
+) {
+  return signAndSubmit(wallet, preset, session, senderId, {
+    actionType: 0,
+    text,
+    receiverId: parent.user.tokenId,
+    receiverCawonce: parent.cawonce,
+  });
+}
+
 export function recawAction(
   wallet: ethers.HDNodeWallet,
   preset: NetworkPreset,

@@ -4,36 +4,8 @@ import { Text, TouchableOpacity, View } from 'react-native';
 import { xColors } from '../theme';
 import type { CawItem } from '../lib/api';
 import { STRINGS, fmt, type Lang } from '../i18n';
-import { BookmarkIcon } from './icons';
-
-const AVATAR_COLORS = ['#1d9bf0', '#794bc4', '#f91880', '#00ba7c', '#ff7a00', '#0f7b6c'];
-
-function avatarColor(seed: string): string {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  return AVATAR_COLORS[h % AVATAR_COLORS.length];
-}
-
-// Generated initial avatar, mirroring the fallback rendering in NameCard
-// (the feed API carries no avatar images).
-export function FeedAvatar({ item }: { item: CawItem }) {
-  const label = item.user.displayName ?? item.user.username ?? item.user.address.slice(2);
-  const initial = (label.charAt(0) || 'C').toUpperCase();
-  return (
-    <View
-      style={{
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: avatarColor(item.user.address),
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>{initial}</Text>
-    </View>
-  );
-}
+import UserAvatar from './UserAvatar';
+import { BookmarkIcon, HeartIcon, RecawIcon, ReplyIcon, ViewsIcon } from './icons';
 
 export function timeLabel(iso: string, lang: Lang): string {
   const t = STRINGS[lang];
@@ -53,6 +25,25 @@ export function compactCount(n: number): string {
   return `${trim(Math.round((n / 1_000_000) * 10) / 10)}M`;
 }
 
+/** Kept for compatibility: the feed avatar is the shared generated avatar. */
+export function FeedAvatar({ item, size = 48 }: { item: CawItem; size?: number }) {
+  const label = item.user.displayName ?? item.user.username ?? item.user.address.slice(2);
+  return (
+    <UserAvatar
+      label={label}
+      seed={item.user.address || item.user.username || String(item.user.tokenId)}
+      size={size}
+    />
+  );
+}
+
+export interface PostUserRef {
+  tokenId: number;
+  username: string | null;
+  displayName: string | null;
+  address: string;
+}
+
 interface Props {
   item: CawItem;
   lang: Lang;
@@ -61,22 +52,46 @@ interface Props {
   /** When omitted, like/recaw render as display-only counts. */
   onLike?: (item: CawItem) => void;
   onRecaw?: (item: CawItem) => void;
+  /** Open the thread view for the (displayed) post. */
+  onPress?: (item: CawItem) => void;
+  /** Open the profile of the (displayed) post's author. */
+  onUserPress?: (user: PostUserRef) => void;
 }
 
 /**
- * The X-style post cell shared by Home and the Bookmarks screen.
- * Action row: reply count · recaw · like · views · bookmark.
- * The views segment renders ONLY when the node payload carried a real
- * numeric viewCount (node-aggregated; never estimated locally), in the
- * X position — right of like, before the bookmark.
+ * The X-style post cell shared by Home, Bookmarks, Search, Profile and
+ * Thread reply lists. Layout per the finished design: 48px avatar, bold
+ * display name on its own line, "@name · time" in gray below it, body,
+ * then the SVG action row: reply · recaw · like · views · bookmark.
+ *
+ * A plain recaw (RECAW action, no own text) is displayed the way X shows
+ * a repost: a "{name} recawed" context line over the ORIGINAL post, and
+ * actions target the original. Counts render only when the payload
+ * actually carries them as numbers — nothing is ever estimated locally.
  */
-export default function PostCell({ item, lang, bookmarked, onToggleBookmark, onLike, onRecaw }: Props) {
-  const name = item.user.displayName ?? item.user.username ?? item.user.address.slice(0, 10) + '…';
-  return (
+export default function PostCell({
+  item,
+  lang,
+  bookmarked,
+  onToggleBookmark,
+  onLike,
+  onRecaw,
+  onPress,
+  onUserPress,
+}: Props) {
+  const t = STRINGS[lang];
+  const isPlainRecaw = item.action === 'RECAW' && !item.content && !!item.originalCaw;
+  const shown = isPlainRecaw ? item.originalCaw! : item;
+  const name = shown.user.displayName ?? shown.user.username ?? shown.user.address.slice(0, 10) + '…';
+  const recawerName =
+    item.user.displayName ?? (item.user.username ? `@${item.user.username}` : `#${item.user.tokenId}`);
+
+  const count = (n: number | undefined) =>
+    typeof n === 'number' ? <Text style={{ fontSize: 13 }}>{n}</Text> : null;
+
+  const body = (
     <View
       style={{
-        flexDirection: 'row',
-        gap: 10,
         paddingHorizontal: 16,
         paddingVertical: 12,
         borderBottomWidth: 1,
@@ -84,69 +99,101 @@ export default function PostCell({ item, lang, bookmarked, onToggleBookmark, onL
         backgroundColor: xColors.bg,
       }}
     >
-      <FeedAvatar item={item} />
-      <View style={{ flex: 1 }}>
-        <Text numberOfLines={1} style={{ fontSize: 15, color: xColors.text }}>
-          <Text style={{ fontWeight: '700' }}>{name}</Text>
-          <Text style={{ color: xColors.sub, fontWeight: '400' }}>
-            {item.user.username ? ` @${item.user.username}` : ''} · {timeLabel(item.timestamp, lang)}
+      {isPlainRecaw && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 30, marginBottom: 4 }}>
+          <RecawIcon size={14} color={xColors.sub} />
+          <Text style={{ fontSize: 13, color: xColors.sub, fontWeight: '600' }}>
+            {fmt(t.recawedBy, { name: recawerName })}
           </Text>
-        </Text>
-        <Text style={{ fontSize: 15, color: xColors.text, lineHeight: 20, marginTop: 2 }}>
-          {item.content}
-        </Text>
-        <View
-          style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginTop: 10,
-            paddingRight: 4,
-          }}
+        </View>
+      )}
+      <View style={{ flexDirection: 'row', gap: 12 }}>
+        <TouchableOpacity
+          onPress={onUserPress ? () => onUserPress(shown.user) : undefined}
+          disabled={!onUserPress}
+          activeOpacity={0.7}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <Text style={{ fontSize: 14 }}>💬</Text>
-            <Text style={{ color: xColors.sub, fontSize: 13 }}>{item.commentCount}</Text>
-          </View>
+          <FeedAvatar item={shown} />
+        </TouchableOpacity>
+        <View style={{ flex: 1 }}>
           <TouchableOpacity
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}
-            onPress={onRecaw ? () => onRecaw(item) : undefined}
-            disabled={!onRecaw}
+            onPress={onUserPress ? () => onUserPress(shown.user) : undefined}
+            disabled={!onUserPress}
+            activeOpacity={0.7}
           >
-            <Text style={{ color: item.hasRecawed ? xColors.recaw : xColors.sub, fontSize: 16 }}>↻</Text>
-            <Text style={{ color: item.hasRecawed ? xColors.recaw : xColors.sub, fontSize: 13 }}>
-              {item.recawCount}
+            <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '700', color: xColors.text }}>
+              {name}
+            </Text>
+            <Text numberOfLines={1} style={{ fontSize: 14, color: xColors.sub, marginTop: 1 }}>
+              {shown.user.username ? `@${shown.user.username}` : `#${shown.user.tokenId}`} ·{' '}
+              {timeLabel(shown.timestamp, lang)}
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}
-            onPress={onLike ? () => onLike(item) : undefined}
-            disabled={!onLike}
+          <Text style={{ fontSize: 15, color: xColors.text, lineHeight: 21, marginTop: 3 }}>
+            {shown.content}
+          </Text>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginTop: 10,
+              paddingRight: 2,
+            }}
           >
-            <Text style={{ color: item.hasLiked ? xColors.like : xColors.sub, fontSize: 15 }}>♥</Text>
-            <Text style={{ color: item.hasLiked ? xColors.like : xColors.sub, fontSize: 13 }}>
-              {item.likeCount}
-            </Text>
-          </TouchableOpacity>
-          {typeof item.viewCount === 'number' && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-              <Text style={{ fontSize: 13 }}>📊</Text>
-              <Text style={{ color: xColors.sub, fontSize: 13 }}>{compactCount(item.viewCount)}</Text>
+              <ReplyIcon size={17} color={xColors.sub} />
+              <Text style={{ color: xColors.sub }}>{count(shown.commentCount)}</Text>
             </View>
-          )}
-          <TouchableOpacity
-            onPress={() => onToggleBookmark(item)}
-            hitSlop={8}
-            style={{ padding: 2 }}
-          >
-            <BookmarkIcon
-              size={17}
-              color={bookmarked ? xColors.accent : xColors.sub}
-              filled={bookmarked}
-            />
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}
+              onPress={onRecaw ? () => onRecaw(shown) : undefined}
+              disabled={!onRecaw}
+              hitSlop={6}
+            >
+              <RecawIcon size={18} color={shown.hasRecawed ? xColors.recaw : xColors.sub} />
+              <Text style={{ color: shown.hasRecawed ? xColors.recaw : xColors.sub }}>
+                {count(shown.recawCount)}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}
+              onPress={onLike ? () => onLike(shown) : undefined}
+              disabled={!onLike}
+              hitSlop={6}
+            >
+              <HeartIcon
+                size={17}
+                color={shown.hasLiked ? xColors.like : xColors.sub}
+                filled={!!shown.hasLiked}
+              />
+              <Text style={{ color: shown.hasLiked ? xColors.like : xColors.sub }}>
+                {count(shown.likeCount)}
+              </Text>
+            </TouchableOpacity>
+            {typeof shown.viewCount === 'number' && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                <ViewsIcon size={17} color={xColors.sub} />
+                <Text style={{ color: xColors.sub, fontSize: 13 }}>{compactCount(shown.viewCount)}</Text>
+              </View>
+            )}
+            <TouchableOpacity onPress={() => onToggleBookmark(shown)} hitSlop={8} style={{ padding: 2 }}>
+              <BookmarkIcon
+                size={17}
+                color={bookmarked ? xColors.accent : xColors.sub}
+                filled={bookmarked}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </View>
+  );
+
+  if (!onPress) return body;
+  return (
+    <TouchableOpacity activeOpacity={0.85} onPress={() => onPress(shown)}>
+      {body}
+    </TouchableOpacity>
   );
 }

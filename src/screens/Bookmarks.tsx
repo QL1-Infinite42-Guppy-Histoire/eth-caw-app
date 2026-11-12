@@ -8,7 +8,8 @@ import { likeAction, recawAction } from '../lib/actions';
 import { loadBookmarks, toggleBookmark, type Bookmark } from '../lib/bookmarks';
 import type { NetworkPreset } from '../config';
 import { STRINGS, type Lang } from '../i18n';
-import PostCell from '../components/PostCell';
+import PostCell, { type PostUserRef } from '../components/PostCell';
+import { BackIcon } from '../components/icons';
 
 interface Props {
   lang: Lang;
@@ -17,9 +18,11 @@ interface Props {
   session: Session | null;
   senderId: number | null;
   onClose: () => void;
+  onOpenPost: (item: CawItem) => void;
+  onOpenUser: (user: PostUserRef) => void;
 }
 
-export default function Bookmarks({ lang, wallet, preset, session, senderId, onClose }: Props) {
+export default function Bookmarks({ lang, wallet, preset, session, senderId, onClose, onOpenPost, onOpenUser }: Props) {
   const t = STRINGS[lang];
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
 
@@ -64,9 +67,9 @@ export default function Bookmarks({ lang, wallet, preset, session, senderId, onC
         }}
       >
         <TouchableOpacity onPress={onClose} hitSlop={8}>
-          <Text style={{ fontSize: 20, color: xColors.text }}>✕</Text>
+          <BackIcon size={21} color={xColors.text} />
         </TouchableOpacity>
-        <Text style={{ fontSize: 17, fontWeight: '800', color: xColors.text }}>{t.bookmarksTitle}</Text>
+        <Text style={{ fontSize: 20, fontWeight: '800', color: xColors.text }}>{t.bookmarksTitle}</Text>
       </View>
       <Text style={{ fontSize: 12, color: xColors.sub, paddingHorizontal: 16, paddingVertical: 8 }}>
         {t.bookmarksLocalNote}
@@ -80,6 +83,8 @@ export default function Bookmarks({ lang, wallet, preset, session, senderId, onC
             lang={lang}
             bookmarked
             onToggleBookmark={(it) => void toggleBm(it)}
+            onPress={onOpenPost}
+            onUserPress={onOpenUser}
             onRecaw={
               canAct
                 ? (it) => act(() => recawAction(wallet!, preset, session!, senderId!, it), t.recawed)

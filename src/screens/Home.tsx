@@ -9,19 +9,15 @@ import {
   View,
 } from 'react-native';
 import { ethers } from 'ethers';
-import { LinearGradient } from 'expo-linear-gradient';
-import { SvgXml } from 'react-native-svg';
 
 import { xColors } from '../theme';
 import { getFeed, type CawItem, type Session } from '../lib/api';
 import { likeAction, recawAction } from '../lib/actions';
 import { loadBookmarks, toggleBookmark, type Bookmark } from '../lib/bookmarks';
-import { getBalances, type OwnedName } from '../lib/mint';
 import type { NetworkPreset } from '../config';
 import { STRINGS, type Lang } from '../i18n';
-import NameCard from '../components/NameCard';
-import PostCell from '../components/PostCell';
-import { BookmarkIcon } from '../components/icons';
+import PostCell, { type PostUserRef } from '../components/PostCell';
+import { PlusIcon } from '../components/icons';
 
 interface Props {
   lang: Lang;
@@ -29,14 +25,12 @@ interface Props {
   preset: NetworkPreset;
   session: Session | null;
   senderId: number | null;
-  names: OwnedName[];
-  onGoMint: () => void;
   onGoNode: () => void;
   onCompose: () => void;
-  onGoBookmarks: () => void;
+  onOpenPost: (item: CawItem) => void;
+  onOpenUser: (user: PostUserRef) => void;
 }
 
-// X-style building blocks (presentation only).
 const xCard = {
   backgroundColor: xColors.bg,
   borderWidth: 1,
@@ -55,20 +49,18 @@ const xButton = {
 } as const;
 const xButtonText = { color: '#ffffff', fontSize: 15, fontWeight: '700' } as const;
 
-export default function Home({ lang, wallet, preset, session, senderId, names, onGoMint, onGoNode, onCompose, onGoBookmarks }: Props) {
+export default function Home({
+  lang,
+  wallet,
+  preset,
+  session,
+  senderId,
+  onGoNode,
+  onCompose,
+  onOpenPost,
+  onOpenUser,
+}: Props) {
   const t = STRINGS[lang];
-  const [balances, setBalances] = useState<{ eth: bigint; caw: bigint | null } | null>(null);
-
-  useEffect(() => {
-    if (!wallet) return;
-    let live = true;
-    getBalances(wallet, preset)
-      .then((b) => live && setBalances(b))
-      .catch(() => live && setBalances(null));
-    return () => {
-      live = false;
-    };
-  }, [wallet, preset, names]);
   const [items, setItems] = useState<CawItem[]>([]);
   const [cursor, setCursor] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
@@ -130,8 +122,10 @@ export default function Home({ lang, wallet, preset, session, senderId, names, o
     <PostCell
       item={item}
       lang={lang}
-      bookmarked={bookmarkedIds.has(item.id)}
+      bookmarked={bookmarkedIds.has(item.id) || (item.originalCaw ? bookmarkedIds.has(item.originalCaw.id) : false)}
       onToggleBookmark={(it) => void toggleBm(it)}
+      onPress={onOpenPost}
+      onUserPress={onOpenUser}
       onRecaw={(it) => act(() => recawAction(wallet!, preset, session!, senderId!, it), t.recawed)}
       onLike={(it) =>
         act(
@@ -142,87 +136,19 @@ export default function Home({ lang, wallet, preset, session, senderId, names, o
     />
   );
 
+  // No node session yet: the timeline cannot load. The names / balances
+  // that used to live here moved to the Profile tab (v0.3.0); this state
+  // only explains the wait and points at the Server screen.
   if (!session) {
-    const primary = names[0] ?? null;
     return (
-      <View style={{ flex: 1, backgroundColor: xColors.bg }}>
-        <LinearGradient
-          colors={['#1d9bf0', '#14b8a6']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{ height: 76 }}
-        />
-        <View style={{ paddingHorizontal: 16 }}>
-          <View
-            style={{
-              marginTop: -28,
-              marginBottom: 8,
-              width: 56,
-              height: 56,
-              borderRadius: 28,
-              borderWidth: 3,
-              borderColor: xColors.bg,
-              backgroundColor: xColors.accent,
-              alignItems: 'center',
-              justifyContent: 'center',
-              overflow: 'hidden',
-            }}
-          >
-            {primary?.imageSvg ? (
-              <SvgXml xml={primary.imageSvg} width={56} height={56} />
-            ) : (
-              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 22 }}>
-                {primary ? primary.name.replace(/^#/, '').charAt(0).toUpperCase() || 'C' : 'C'}
-              </Text>
-            )}
-          </View>
-          <Text style={{ fontSize: 20, fontWeight: '800', color: xColors.text }}>
-            {primary ? `@${primary.name}` : t.myNames}
-          </Text>
-        </View>
-        <View style={{ paddingHorizontal: 16, paddingTop: 12, gap: 12 }}>
-          <View style={xCard}>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: xColors.text }}>{t.myNames}</Text>
-            {names.length === 0 ? (
-              <Text style={xSub}>{t.noNamesYet}</Text>
-            ) : (
-              names.map((n) => <NameCard key={n.tokenId} name={n} lang={lang} />)
-            )}
-            <TouchableOpacity style={xButton} onPress={onGoMint}>
-              <Text style={xButtonText}>{t.goMint}</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={xCard}>
-            <Text style={xSub}>{t.balanceLabel}</Text>
-            <Text style={{ fontSize: 19, fontWeight: '700', color: xColors.text }}>
-              {balances
-                ? balances.caw != null
-                  ? `${Number(ethers.formatUnits(balances.caw, 18)).toLocaleString('ja-JP', { maximumFractionDigits: 0 })} CAW`
-                  : `${Number(ethers.formatEther(balances.eth)).toFixed(5)} ETH`
-                : '…'}
-            </Text>
-            {balances && balances.caw != null && (
-              <Text style={xSub}>{Number(ethers.formatEther(balances.eth)).toFixed(5)} ETH</Text>
-            )}
-          </View>
-          <TouchableOpacity
-            style={[xCard, { flexDirection: 'row', alignItems: 'center', gap: 10 }]}
-            onPress={onGoBookmarks}
-          >
-            <BookmarkIcon size={19} color={xColors.text} />
-            <Text style={{ flex: 1, fontSize: 16, fontWeight: '700', color: xColors.text }}>
-              {t.bookmarksTitle}
-            </Text>
-            <Text style={{ fontSize: 18, color: xColors.sub }}>›</Text>
+      <View style={{ flex: 1, backgroundColor: xColors.bg, padding: 16 }}>
+        <View style={xCard}>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: xColors.text }}>{t.timeline}</Text>
+          <Text style={xSub}>{t.nodeSearching}</Text>
+          <Text style={xSub}>{t.mintNoNodeNote}</Text>
+          <TouchableOpacity style={xButton} onPress={onGoNode}>
+            <Text style={xButtonText}>{t.nodeHomeCta}</Text>
           </TouchableOpacity>
-          <View style={xCard}>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: xColors.text }}>{t.timeline}</Text>
-            <Text style={xSub}>{t.nodeSearching}</Text>
-            <Text style={xSub}>{t.mintNoNodeNote}</Text>
-            <TouchableOpacity style={xButton} onPress={onGoNode}>
-              <Text style={xButtonText}>{t.nodeHomeCta}</Text>
-            </TouchableOpacity>
-          </View>
         </View>
       </View>
     );
@@ -258,9 +184,7 @@ export default function Home({ lang, wallet, preset, session, senderId, names, o
           onEndReached={() => cursor && load(cursor)}
           onEndReachedThreshold={0.4}
           ListEmptyComponent={
-            <Text style={[xSub, { textAlign: 'center', marginTop: 32 }]}>
-              {t.feedEmpty}
-            </Text>
+            <Text style={[xSub, { textAlign: 'center', marginTop: 32 }]}>{t.feedEmpty}</Text>
           }
         />
       )}
@@ -276,10 +200,14 @@ export default function Home({ lang, wallet, preset, session, senderId, names, o
           alignItems: 'center',
           justifyContent: 'center',
           elevation: 3,
+          shadowColor: '#000',
+          shadowOpacity: 0.2,
+          shadowRadius: 6,
+          shadowOffset: { width: 0, height: 3 },
         }}
         onPress={onCompose}
       >
-        <Text style={{ color: '#fff', fontSize: 26, fontWeight: '600', lineHeight: 30 }}>+</Text>
+        <PlusIcon size={26} color="#fff" />
       </TouchableOpacity>
     </View>
   );

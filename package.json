@@ -27,5 +27,5 @@
     "start": "expo start",
     "typecheck": "tsc --noEmit"
   },
-  "version": "0.1.10"
+  "version": "0.3.0"
 }
