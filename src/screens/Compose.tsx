@@ -15,10 +15,12 @@ interface Props {
   preset: NetworkPreset;
   session: Session;
   senderId: number;
+  /** Display-only: the @handle of the name this post will be sent as. */
+  senderName?: string | null;
   onDone: () => void;
 }
 
-export default function Compose({ lang, wallet, preset, session, senderId, onDone }: Props) {
+export default function Compose({ lang, wallet, preset, session, senderId, senderName, onDone }: Props) {
   const t = STRINGS[lang];
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -111,6 +113,21 @@ export default function Compose({ lang, wallet, preset, session, senderId, onDon
         />
       </View>
       <View style={{ paddingLeft: 66, paddingRight: 16, gap: 4 }}>
+        {senderName && (
+          <View
+            style={{
+              alignSelf: 'flex-start',
+              borderWidth: 1,
+              borderColor: xColors.border,
+              borderRadius: 999,
+              paddingHorizontal: 12,
+              paddingVertical: 5,
+              marginBottom: 2,
+            }}
+          >
+            <Text style={{ fontSize: 13, fontWeight: '700', color: xColors.text }}>@{senderName}</Text>
+          </View>
+        )}
         <Text style={{ fontSize: 12, color: xColors.sub, lineHeight: 17 }}>{t.postNote}</Text>
         {tip != null && (
           <Text style={{ fontSize: 12, color: xColors.sub, lineHeight: 17 }}>

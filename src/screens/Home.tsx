@@ -15,10 +15,13 @@ import { SvgXml } from 'react-native-svg';
 import { xColors } from '../theme';
 import { getFeed, type CawItem, type Session } from '../lib/api';
 import { likeAction, recawAction } from '../lib/actions';
+import { loadBookmarks, toggleBookmark, type Bookmark } from '../lib/bookmarks';
 import { getBalances, type OwnedName } from '../lib/mint';
 import type { NetworkPreset } from '../config';
-import { STRINGS, fmt, type Lang } from '../i18n';
+import { STRINGS, type Lang } from '../i18n';
 import NameCard from '../components/NameCard';
+import PostCell from '../components/PostCell';
+import { BookmarkIcon } from '../components/icons';
 
 interface Props {
   lang: Lang;
@@ -30,6 +33,7 @@ interface Props {
   onGoMint: () => void;
   onGoNode: () => void;
   onCompose: () => void;
+  onGoBookmarks: () => void;
 }
 
 // X-style building blocks (presentation only).
@@ -51,45 +55,7 @@ const xButton = {
 } as const;
 const xButtonText = { color: '#ffffff', fontSize: 15, fontWeight: '700' } as const;
 
-const AVATAR_COLORS = ['#1d9bf0', '#794bc4', '#f91880', '#00ba7c', '#ff7a00', '#0f7b6c'];
-
-function avatarColor(seed: string): string {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  return AVATAR_COLORS[h % AVATAR_COLORS.length];
-}
-
-// Generated initial avatar, mirroring the fallback rendering in NameCard
-// (the feed API carries no avatar images).
-function FeedAvatar({ item }: { item: CawItem }) {
-  const label = item.user.displayName ?? item.user.username ?? item.user.address.slice(2);
-  const initial = (label.charAt(0) || 'C').toUpperCase();
-  return (
-    <View
-      style={{
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: avatarColor(item.user.address),
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>{initial}</Text>
-    </View>
-  );
-}
-
-function timeLabel(iso: string, lang: Lang): string {
-  const t = STRINGS[lang];
-  const d = new Date(iso);
-  const diffMin = Math.max(0, Math.round((Date.now() - d.getTime()) / 60000));
-  if (diffMin < 60) return fmt(t.minAgo, { n: diffMin });
-  if (diffMin < 60 * 24) return fmt(t.hourAgo, { n: Math.floor(diffMin / 60) });
-  return `${d.getMonth() + 1}/${d.getDate()}`;
-}
-
-export default function Home({ lang, wallet, preset, session, senderId, names, onGoMint, onGoNode, onCompose }: Props) {
+export default function Home({ lang, wallet, preset, session, senderId, names, onGoMint, onGoNode, onCompose, onGoBookmarks }: Props) {
   const t = STRINGS[lang];
   const [balances, setBalances] = useState<{ eth: bigint; caw: bigint | null } | null>(null);
 
@@ -108,6 +74,21 @@ export default function Home({ lang, wallet, preset, session, senderId, names, o
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // On-device bookmarks (local only; reloaded on mount so changes made on
+  // the Bookmarks screen are reflected when the user comes back here).
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  useEffect(() => {
+    let live = true;
+    loadBookmarks().then((b) => live && setBookmarks(b));
+    return () => {
+      live = false;
+    };
+  }, []);
+  const bookmarkedIds = new Set(bookmarks.map((b) => b.id));
+  const toggleBm = async (it: CawItem) => {
+    setBookmarks(await toggleBookmark(bookmarks, it));
+  };
 
   const load = useCallback(
     async (next?: string, replace = false) => {
@@ -145,71 +126,21 @@ export default function Home({ lang, wallet, preset, session, senderId, names, o
     }
   };
 
-  const renderItem = ({ item }: { item: CawItem }) => {
-    const name = item.user.displayName ?? item.user.username ?? item.user.address.slice(0, 10) + '…';
-    return (
-      <View
-        style={{
-          flexDirection: 'row',
-          gap: 10,
-          paddingHorizontal: 16,
-          paddingVertical: 12,
-          borderBottomWidth: 1,
-          borderBottomColor: xColors.border,
-          backgroundColor: xColors.bg,
-        }}
-      >
-        <FeedAvatar item={item} />
-        <View style={{ flex: 1 }}>
-          <Text numberOfLines={1} style={{ fontSize: 15, color: xColors.text }}>
-            <Text style={{ fontWeight: '700' }}>{name}</Text>
-            <Text style={{ color: xColors.sub, fontWeight: '400' }}>
-              {item.user.username ? ` @${item.user.username}` : ''} · {timeLabel(item.timestamp, lang)}
-            </Text>
-          </Text>
-          <Text style={{ fontSize: 15, color: xColors.text, lineHeight: 20, marginTop: 2 }}>
-            {item.content}
-          </Text>
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              marginTop: 10,
-              paddingRight: 36,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-              <Text style={{ fontSize: 14 }}>💬</Text>
-              <Text style={{ color: xColors.sub, fontSize: 13 }}>{item.commentCount}</Text>
-            </View>
-            <TouchableOpacity
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}
-              onPress={() => act(() => recawAction(wallet!, preset, session!, senderId!, item), t.recawed)}
-            >
-              <Text style={{ color: item.hasRecawed ? xColors.recaw : xColors.sub, fontSize: 16 }}>↻</Text>
-              <Text style={{ color: item.hasRecawed ? xColors.recaw : xColors.sub, fontSize: 13 }}>
-                {item.recawCount}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}
-              onPress={() =>
-                act(
-                  () => likeAction(wallet!, preset, session!, senderId!, item, !!item.hasLiked),
-                  item.hasLiked ? t.unliked : t.liked,
-                )
-              }
-            >
-              <Text style={{ color: item.hasLiked ? xColors.like : xColors.sub, fontSize: 15 }}>♥</Text>
-              <Text style={{ color: item.hasLiked ? xColors.like : xColors.sub, fontSize: 13 }}>
-                {item.likeCount}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    );
-  };
+  const renderItem = ({ item }: { item: CawItem }) => (
+    <PostCell
+      item={item}
+      lang={lang}
+      bookmarked={bookmarkedIds.has(item.id)}
+      onToggleBookmark={(it) => void toggleBm(it)}
+      onRecaw={(it) => act(() => recawAction(wallet!, preset, session!, senderId!, it), t.recawed)}
+      onLike={(it) =>
+        act(
+          () => likeAction(wallet!, preset, session!, senderId!, it, !!it.hasLiked),
+          it.hasLiked ? t.unliked : t.liked,
+        )
+      }
+    />
+  );
 
   if (!session) {
     const primary = names[0] ?? null;
@@ -274,6 +205,16 @@ export default function Home({ lang, wallet, preset, session, senderId, names, o
               <Text style={xSub}>{Number(ethers.formatEther(balances.eth)).toFixed(5)} ETH</Text>
             )}
           </View>
+          <TouchableOpacity
+            style={[xCard, { flexDirection: 'row', alignItems: 'center', gap: 10 }]}
+            onPress={onGoBookmarks}
+          >
+            <BookmarkIcon size={19} color={xColors.text} />
+            <Text style={{ flex: 1, fontSize: 16, fontWeight: '700', color: xColors.text }}>
+              {t.bookmarksTitle}
+            </Text>
+            <Text style={{ fontSize: 18, color: xColors.sub }}>›</Text>
+          </TouchableOpacity>
           <View style={xCard}>
             <Text style={{ fontSize: 16, fontWeight: '700', color: xColors.text }}>{t.timeline}</Text>
             <Text style={xSub}>{t.nodeSearching}</Text>

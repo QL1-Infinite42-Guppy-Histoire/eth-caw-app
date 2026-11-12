@@ -105,6 +105,13 @@ export interface CawItem {
   likeCount: number;
   recawCount: number;
   commentCount: number;
+  /**
+   * Node-aggregated view count (Caw.viewCount on the node). Counted by the
+   * node from client view reports, deduplicated per viewer over a rolling
+   * 24h window — never recorded on-chain. Absent on nodes whose feed
+   * payload predates the field; render only when a real number is present.
+   */
+  viewCount?: number;
   hasLiked?: boolean;
   hasRecawed?: boolean;
   user: {
@@ -138,6 +145,67 @@ export async function getValidatorTip(): Promise<bigint> {
   const body = await res.json();
   const tip = BigInt(body.baseTip ?? 1000);
   return tip > MAX_VALIDATOR_TIP ? MAX_VALIDATOR_TIP : tip;
+}
+
+export interface NotificationActor {
+  tokenId: number;
+  username: string | null;
+  displayName: string | null;
+  avatarUrl?: string | null;
+}
+
+export interface AppNotification {
+  id: number;
+  /** Upstream NotificationType: FOLLOW / LIKE / REPLY / REPOST / QUOTE / MENTION / TIP / … */
+  type: string;
+  actor: NotificationActor | null;
+  additionalActors?: NotificationActor[];
+  /** The related post, when the notification carries one (snippet source). */
+  caw: { id: number; content: string; createdAt: string } | null;
+  isRead: boolean;
+  createdAt: string;
+  /** Rollup size: how many raw notifications this row represents. */
+  count: number;
+}
+
+export interface NotificationsPage {
+  notifications: AppNotification[];
+  unreadCount: number;
+  hasMore: boolean;
+}
+
+/**
+ * Read-only: GET /api/notifications for one of the session's names.
+ * The route sits behind the node's requireAuth with ownership verification
+ * (the query userId must be one of the session's authorized token ids) —
+ * the same cookie session every other authed call uses. On failure the
+ * thrown error carries `.status` so callers can tell "this node has no
+ * notifications route" (404) apart from other load failures.
+ */
+export async function getNotifications(
+  session: Session,
+  userId: number,
+  opts?: { limit?: number; offset?: number },
+): Promise<NotificationsPage> {
+  const q = new URLSearchParams({
+    userId: String(userId),
+    limit: String(opts?.limit ?? 50),
+    offset: String(opts?.offset ?? 0),
+  });
+  const res = await authedFetch(`/api/notifications?${q.toString()}`, session);
+  if (!res.ok) {
+    const err = new Error(`通知の取得に失敗しました (HTTP ${res.status})`) as Error & {
+      status?: number;
+    };
+    err.status = res.status;
+    throw err;
+  }
+  const body = await res.json();
+  return {
+    notifications: body.notifications ?? [],
+    unreadCount: body.unreadCount ?? 0,
+    hasMore: !!body.hasMore,
+  };
 }
 
 export async function submitAction(

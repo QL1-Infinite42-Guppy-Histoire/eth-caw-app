@@ -20,6 +20,7 @@ import { colors, styles, xColors } from './src/theme';
 import { hasWallet, loadWallet } from './src/lib/wallet';
 import {
   IndexingError,
+  getNotifications,
   loadSession,
   saveSession,
   setNodeUrl,
@@ -28,17 +29,29 @@ import {
 } from './src/lib/api';
 import { fetchOwnedNames, type OwnedName } from './src/lib/mint';
 import { pickRegistryNode } from './src/lib/nodes';
+import { BellIcon, BookmarkIcon } from './src/components/icons';
 import Onboarding from './src/screens/Onboarding';
 import Mint from './src/screens/Mint';
 import Swap from './src/screens/Swap';
 import Home from './src/screens/Home';
 import Compose from './src/screens/Compose';
+import Notifications from './src/screens/Notifications';
+import Bookmarks from './src/screens/Bookmarks';
 import Settings from './src/screens/Settings';
 import NodeScreen from './src/screens/Node';
 import Send from './src/screens/Send';
 
 type Phase = 'boot' | 'onboarding' | 'locked' | 'main';
-type Tab = 'home' | 'mint' | 'swap' | 'send' | 'compose' | 'node' | 'settings';
+type Tab =
+  | 'home'
+  | 'mint'
+  | 'swap'
+  | 'send'
+  | 'compose'
+  | 'notifications'
+  | 'bookmarks'
+  | 'node'
+  | 'settings';
 
 function AppInner() {
   const [phase, setPhase] = useState<Phase>('boot');
@@ -203,6 +216,27 @@ function AppInner() {
   }, []);
 
   const primaryName = names[0] ?? null;
+  const senderName = names.find((n) => n.tokenId === senderId)?.name ?? null;
+
+  // Unread-notification dot for the header bell. Read once per session /
+  // tab change from the notifications fetch (its response carries
+  // unreadCount) — deliberately no polling.
+  const [unreadCount, setUnreadCount] = useState<number | null>(null);
+  const refreshUnread = useCallback(async () => {
+    if (!session || senderId == null) {
+      setUnreadCount(null);
+      return;
+    }
+    try {
+      const page = await getNotifications(session, senderId, { limit: 1 });
+      setUnreadCount(page.unreadCount);
+    } catch {
+      setUnreadCount(null);
+    }
+  }, [session, senderId]);
+  useEffect(() => {
+    void refreshUnread();
+  }, [refreshUnread, tab]);
 
   const onNodeUrlChange = useCallback(
     async (url: string) => {
@@ -307,23 +341,58 @@ function AppInner() {
           )}
         </View>
         <Text style={{ fontSize: 20, fontWeight: '800', color: xColors.text }}>CAW</Text>
-        <View style={{ flex: 1, alignItems: 'flex-end' }}>
-          <Text style={{ fontSize: 11, fontWeight: primaryName ? '700' : '400', color: primaryName ? xColors.text : xColors.sub }}>
-            {primaryName ? `@${primaryName.name}` : session ? t.headerNoName : t.headerWaiting}
-          </Text>
-          <View
-            style={{
-              marginTop: 2,
-              borderWidth: 1,
-              borderColor: xColors.border,
-              borderRadius: 999,
-              paddingHorizontal: 7,
-              paddingVertical: 1,
-            }}
-          >
-            <Text style={{ fontSize: 10, color: session ? xColors.accent : xColors.sub }}>
-              {session ? `● ${t.chipConnected}` : `○ ${t.headerWaiting}`}
+        <View
+          style={{
+            flex: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            gap: 13,
+          }}
+        >
+          <TouchableOpacity onPress={() => setTab('notifications')} hitSlop={8} style={{ padding: 2 }}>
+            <BellIcon size={21} color={tab === 'notifications' ? xColors.text : xColors.sub} />
+            {unreadCount != null && unreadCount > 0 && (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  right: 0,
+                  width: 9,
+                  height: 9,
+                  borderRadius: 5,
+                  backgroundColor: xColors.accent,
+                  borderWidth: 1.5,
+                  borderColor: xColors.bg,
+                }}
+              />
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setTab('bookmarks')} hitSlop={8} style={{ padding: 2 }}>
+            <BookmarkIcon
+              size={19}
+              color={tab === 'bookmarks' ? xColors.text : xColors.sub}
+              filled={tab === 'bookmarks'}
+            />
+          </TouchableOpacity>
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={{ fontSize: 11, fontWeight: primaryName ? '700' : '400', color: primaryName ? xColors.text : xColors.sub }}>
+              {primaryName ? `@${primaryName.name}` : session ? t.headerNoName : t.headerWaiting}
             </Text>
+            <View
+              style={{
+                marginTop: 2,
+                borderWidth: 1,
+                borderColor: xColors.border,
+                borderRadius: 999,
+                paddingHorizontal: 7,
+                paddingVertical: 1,
+              }}
+            >
+              <Text style={{ fontSize: 10, color: session ? xColors.accent : xColors.sub }}>
+                {session ? `● ${t.chipConnected}` : `○ ${t.headerWaiting}`}
+              </Text>
+            </View>
           </View>
         </View>
       </View>
@@ -338,6 +407,7 @@ function AppInner() {
           names={names}
           onGoMint={() => setTab('mint')}
           onGoNode={() => setTab('node')}
+          onGoBookmarks={() => setTab('bookmarks')}
           onCompose={() => {
             if (!session || senderId == null) {
               Alert.alert(t.nameRequiredTitle, t.nameRequiredMsgPost);
@@ -354,7 +424,26 @@ function AppInner() {
           preset={preset}
           session={session}
           senderId={senderId}
+          senderName={senderName}
           onDone={() => setTab('home')}
+        />
+      )}
+      {tab === 'notifications' && (
+        <Notifications
+          lang={lang}
+          session={session}
+          senderId={senderId}
+          onClose={() => setTab('home')}
+        />
+      )}
+      {tab === 'bookmarks' && (
+        <Bookmarks
+          lang={lang}
+          wallet={wallet}
+          preset={preset}
+          session={session}
+          senderId={senderId}
+          onClose={() => setTab('home')}
         />
       )}
       {tab === 'mint' && (
