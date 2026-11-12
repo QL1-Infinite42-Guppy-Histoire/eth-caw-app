@@ -43,14 +43,13 @@ type Phase =
 
 const DEPOSIT = ethers.parseUnits(MINT_DEPOSIT_CAW, 18);
 
-// Name minting is closed in the app for maintenance (since v0.1.10, period
-// undecided). NOTE: this closes only the app's entrance — the contract's
-// mint function is permissionless and cannot be halted by anyone, so the
-// wording shown to users must never claim issuance itself is stopped.
-// Public builds keep maintenance ON. A private build for the initiator
-// sets EXPO_PUBLIC_MINT_OPEN=1 at build time (CI workflow_dispatch input),
-// which flips only that build's entrance; nothing is published from it.
-const MINT_MAINTENANCE = process.env.EXPO_PUBLIC_MINT_OPEN !== '1';
+// Name minting was closed in the app for maintenance from v0.1.10 to
+// v0.1.16 and REOPENED on Nov 12, 2026 (the mint-enabled edition became
+// the public release; from v0.1.17 the entrance is open in the normal
+// build and the private-build mechanism is retired). NOTE: the
+// maintenance only ever closed the app's entrance — the contract's mint
+// function is permissionless and cannot be halted by anyone.
+const MINT_MAINTENANCE = false;
 
 function fmtCaw(v: bigint): string {
   const n = Number(ethers.formatUnits(v, 18));
