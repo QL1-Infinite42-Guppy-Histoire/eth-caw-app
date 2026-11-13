@@ -17,7 +17,6 @@ import { loadBookmarks, toggleBookmark, type Bookmark } from '../lib/bookmarks';
 import type { NetworkPreset } from '../config';
 import { STRINGS, type Lang } from '../i18n';
 import PostCell, { type PostUserRef } from '../components/PostCell';
-import { PlusIcon } from '../components/icons';
 
 interface Props {
   lang: Lang;
@@ -192,22 +191,23 @@ export default function Home({
         style={{
           position: 'absolute',
           right: 18,
-          bottom: 22,
+          bottom: 18,
           backgroundColor: xColors.accent,
           width: 56,
           height: 56,
           borderRadius: 28,
           alignItems: 'center',
           justifyContent: 'center',
-          elevation: 3,
+          elevation: 4,
           shadowColor: '#000',
           shadowOpacity: 0.2,
-          shadowRadius: 6,
-          shadowOffset: { width: 0, height: 3 },
+          shadowRadius: 4,
+          shadowOffset: { width: 0, height: 2 },
         }}
         onPress={onCompose}
+        accessibilityLabel={t.postBtn}
       >
-        <PlusIcon size={26} color="#fff" />
+        <Text style={{ color: '#fff', fontSize: 24, lineHeight: 26 }}>+</Text>
       </TouchableOpacity>
     </View>
   );

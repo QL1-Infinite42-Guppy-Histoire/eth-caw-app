@@ -209,6 +209,29 @@ export function GearIcon(props: IconProps) {
   );
 }
 
+/** Share (QL1 v0.6.4): the feather upload glyph — last in the post action row. */
+export function ShareIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <Path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <Polyline points="17 8 12 3 7 8" />
+      <Line x1={12} y1={3} x2={12} y2={15} />
+    </Base>
+  );
+}
+
+/** Get a name: user-plus, for the wallet screen's mint action button. */
+export function UserPlusIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <Path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <Circle cx={8.5} cy={7} r={4} />
+      <Line x1={20} y1={8} x2={20} y2={14} />
+      <Line x1={23} y1={11} x2={17} y2={11} />
+    </Base>
+  );
+}
+
 /** ID-card icon for the Names menu row. */
 export function NameBadgeIcon(props: IconProps) {
   return (

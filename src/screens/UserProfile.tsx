@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  Image,
   RefreshControl,
   Text,
   TouchableOpacity,
@@ -38,21 +37,38 @@ interface Props {
   senderId: number | null;
   tokenId: number;
   username: string | null;
-  onBack: () => void;
+  /** Absent when this page IS the Profile tab (the user's own profile
+   *  page, QL1 v0.6.2 form): then no back bar is rendered. */
+  onBack?: () => void;
   onOpenPost: (item: CawItem) => void;
   onOpenUser: (user: PostUserRef) => void;
 }
 
 type SubTab = UserCawsFilter;
 
+/* QL1 chip: gray pill under the handle (#id / deposit figure). */
+const chipStyle = {
+  backgroundColor: '#f0f3f4',
+  borderRadius: 999,
+  paddingHorizontal: 10,
+  paddingVertical: 4,
+} as const;
+const chipTextStyle = { fontSize: 12.5, color: xColors.text } as const;
+
 /**
- * Another user's profile (overlay). Everything shown comes from the
- * node's own profile reads: counts/bio from GET /api/users/:username,
- * the deposit card from the node's cached on-chain stake
- * (GET /api/users/by-token — rendered only when the node actually has a
- * value), and the Posts / Replies / Likes lists from the node's profile
- * feed modes. There is deliberately no Follow button: follow is not
- * implemented anywhere in this app today.
+ * A user's profile page (overlay for other users; the Profile tab
+ * itself for the user's own page — QL1 v0.6.2 arrangement). Layout
+ * metrics are the QL1 profile page's: 110px banner, 96px avatar in a
+ * 104px white ring overlapping by 48, name at 20/800, a chip row
+ * (#id, plus the deposit figure when the node has one), counts as
+ * bordered cells, and tabs with the accent underline bar.
+ * Everything shown comes from the node's own profile reads:
+ * counts/bio from GET /api/users/:username, the deposit figure from
+ * the node's cached on-chain stake (GET /api/users/by-token —
+ * rendered only when the node actually has a value), and the
+ * Posts / Replies / Likes lists from the node's profile feed modes.
+ * There is deliberately no Follow button: follow is not implemented
+ * anywhere in this app today.
  */
 export default function UserProfile({
   lang,
@@ -187,76 +203,81 @@ export default function UserProfile({
         colors={['#1d9bf0', '#14b8a6']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={{ height: 104 }}
+        style={{ height: 110 }}
       />
       <View style={{ paddingHorizontal: 16 }}>
-        <View style={{ marginTop: -34, marginBottom: 6 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
           <View
             style={{
-              width: 72,
-              height: 72,
-              borderRadius: 36,
-              borderWidth: 3,
-              borderColor: xColors.bg,
+              width: 104,
+              height: 104,
+              borderRadius: 52,
               backgroundColor: xColors.bg,
-              overflow: 'hidden',
-              alignSelf: 'flex-start',
               alignItems: 'center',
               justifyContent: 'center',
+              marginTop: -48,
             }}
           >
             <UserAvatar
               label={displayName}
               seed={profile.address || profile.username}
-              size={66}
+              size={96}
               avatarUrl={profile.avatarUrl}
             />
           </View>
         </View>
-        <Text style={{ fontSize: 20, fontWeight: '800', color: xColors.text }}>{displayName}</Text>
+        <Text style={{ fontSize: 20, fontWeight: '800', color: xColors.text, marginTop: 8 }}>
+          {displayName}
+        </Text>
         <Text style={{ fontSize: 14, color: xColors.sub, marginTop: 1 }}>@{profile.username}</Text>
         {profile.bio ? (
           <Text style={{ fontSize: 14, color: xColors.text, lineHeight: 20, marginTop: 8 }}>
             {profile.bio}
           </Text>
         ) : null}
-        <View style={{ flexDirection: 'row', gap: 22, marginTop: 12 }}>
-          <Text style={{ fontSize: 14, color: xColors.sub }}>
-            <Text style={{ fontWeight: '800', color: xColors.text, fontSize: 15 }}>
-              {profile.followingCount.toLocaleString()}
-            </Text>{' '}
-            {t.followingLabel}
-          </Text>
-          <Text style={{ fontSize: 14, color: xColors.sub }}>
-            <Text style={{ fontWeight: '800', color: xColors.text, fontSize: 15 }}>
-              {profile.followerCount.toLocaleString()}
-            </Text>{' '}
-            {t.followersLabel}
-          </Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+          <View style={chipStyle}>
+            <Text style={chipTextStyle}>#{profile.tokenId}</Text>
+          </View>
+          {stakeCaw != null && (
+            <View style={chipStyle}>
+              <Text style={chipTextStyle}>
+                {t.depositShort}: {stakeCaw} CAW
+              </Text>
+            </View>
+          )}
         </View>
-      </View>
-      {stakeCaw != null && (
         <View
           style={{
             flexDirection: 'row',
-            alignItems: 'center',
-            gap: 12,
-            marginHorizontal: 16,
+            alignItems: 'stretch',
             marginTop: 14,
             borderWidth: 1,
             borderColor: xColors.border,
-            borderRadius: 16,
-            padding: 14,
+            borderRadius: 14,
+            backgroundColor: xColors.bg,
+            overflow: 'hidden',
           }}
         >
-          <Image source={require('../../assets/icon.png')} style={{ width: 40, height: 40, borderRadius: 10 }} />
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 12, color: xColors.sub }}>{t.depositCardTitle}</Text>
-            <Text style={{ fontSize: 19, fontWeight: '800', color: xColors.text }}>{stakeCaw} CAW</Text>
-            <Text style={{ fontSize: 11, color: xColors.sub, marginTop: 1 }}>{t.depositCardNote}</Text>
-          </View>
+          {(
+            [
+              [profile.followingCount, t.followingLabel],
+              [profile.followerCount, t.followersLabel],
+              [profile.cawCount, t.profilePosts],
+            ] as [number, string][]
+          ).map(([n, label], i) => (
+            <React.Fragment key={label}>
+              {i > 0 && <View style={{ width: 1, backgroundColor: xColors.border }} />}
+              <View style={{ flex: 1, alignItems: 'center', paddingVertical: 10, gap: 1 }}>
+                <Text style={{ fontSize: 16, fontWeight: '800', color: xColors.text }}>
+                  {n.toLocaleString()}
+                </Text>
+                <Text style={{ fontSize: 12, color: xColors.sub }}>{label}</Text>
+              </View>
+            </React.Fragment>
+          ))}
         </View>
-      )}
+      </View>
       <View
         style={{
           flexDirection: 'row',
@@ -274,14 +295,15 @@ export default function UserProfile({
         ).map(([key, label]) => (
           <TouchableOpacity
             key={key}
-            style={{ flex: 1, alignItems: 'center', paddingVertical: 12 }}
+            style={{ flex: 1, alignItems: 'center', paddingTop: 12 }}
             onPress={() => setSubTab(key)}
           >
             <Text
               style={{
-                fontSize: 15,
+                fontSize: 14.5,
                 color: subTab === key ? xColors.text : xColors.sub,
-                fontWeight: subTab === key ? '800' : '400',
+                fontWeight: subTab === key ? '800' : '600',
+                paddingBottom: 10,
               }}
             >
               {label}
@@ -289,12 +311,11 @@ export default function UserProfile({
             {subTab === key && (
               <View
                 style={{
-                  position: 'absolute',
-                  bottom: 0,
                   height: 3,
-                  width: 56,
+                  width: '70%',
                   borderRadius: 2,
                   backgroundColor: xColors.accent,
+                  marginBottom: -1,
                 }}
               />
             )}
@@ -309,24 +330,26 @@ export default function UserProfile({
 
   return (
     <View style={{ flex: 1, backgroundColor: xColors.bg }}>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 14,
-          paddingHorizontal: 16,
-          paddingVertical: 10,
-          borderBottomWidth: 1,
-          borderBottomColor: xColors.border,
-        }}
-      >
-        <TouchableOpacity onPress={onBack} hitSlop={8}>
-          <BackIcon size={21} color={xColors.text} />
-        </TouchableOpacity>
-        <Text style={{ fontSize: 17, fontWeight: '800', color: xColors.text }} numberOfLines={1}>
-          {profile ? displayName : username ? `@${username}` : `#${tokenId}`}
-        </Text>
-      </View>
+      {onBack ? (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 14,
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+            borderBottomWidth: 1,
+            borderBottomColor: xColors.border,
+          }}
+        >
+          <TouchableOpacity onPress={onBack} hitSlop={8}>
+            <BackIcon size={20} color={xColors.text} />
+          </TouchableOpacity>
+          <Text style={{ fontSize: 16, fontWeight: '800', color: xColors.text }} numberOfLines={1}>
+            {profile ? displayName : username ? `@${username}` : `#${tokenId}`}
+          </Text>
+        </View>
+      ) : null}
 
       {!profile && profileError === null ? (
         <ActivityIndicator style={{ marginTop: 40 }} color={xColors.accent} />

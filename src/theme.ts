@@ -14,10 +14,10 @@ export const colors = {
   line: '#e2e8f0',
 };
 
-// X (Twitter)-style design tokens for the v0.2.0 reskin of the social
-// surfaces (app chrome, Home, Compose). The legacy tokens above are kept
-// untouched so the tool screens (Mint / Swap / Send / Node / Settings)
-// keep their current look until their own reskin.
+// X (Twitter)-style design tokens. v0.4.0: aligned with the QL1 CAW
+// app's finished X theme (its config.ts X_* tokens and LIKE_ON), so the
+// two apps share one visual language: ink #0f1419, secondary #536471,
+// hairline #eff3f4, accent #1d9bf0, like #e0245e, recaw #00ba7c.
 export const xColors = {
   bg: '#ffffff',
   text: '#0f1419',
@@ -25,7 +25,7 @@ export const xColors = {
   accent: '#1d9bf0',
   border: '#eff3f4',
   divider: '#cfd9de',
-  like: '#f91880',
+  like: '#e0245e',
   recaw: '#00ba7c',
   danger: '#dc2626',
 };

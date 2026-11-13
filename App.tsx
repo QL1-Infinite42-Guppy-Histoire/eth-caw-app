@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, BackHandler, Image, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ethers } from 'ethers';
@@ -30,6 +30,7 @@ import {
 import { fetchOwnedNames, type OwnedName } from './src/lib/mint';
 import { pickRegistryNode } from './src/lib/nodes';
 import { BellIcon, HomeIcon, PersonIcon, SearchIcon } from './src/components/icons';
+import Drawer from './src/components/Drawer';
 import type { PostUserRef } from './src/components/PostCell';
 import Onboarding from './src/screens/Onboarding';
 import Mint from './src/screens/Mint';
@@ -44,16 +45,18 @@ import Send from './src/screens/Send';
 import Thread from './src/screens/Thread';
 import UserProfile from './src/screens/UserProfile';
 import Search from './src/screens/Search';
-import ProfileMenu from './src/screens/ProfileMenu';
 import WalletBalances from './src/screens/WalletBalances';
 
 type Phase = 'boot' | 'onboarding' | 'locked' | 'main';
 
-// v0.3.0 navigation: four bottom tabs (Home / Search / Notifications /
-// Profile). Everything else — Compose, Thread, user profiles, and the
-// tool screens (Mint / Swap / Send / Server / Settings / Bookmarks /
-// Wallet) — is an overlay pushed on a small stack above the tab content,
-// so Back returns to where the user was.
+// v0.4.0 navigation (QL1 v0.6.2 form): four bottom tabs (Home / Search /
+// Bell(Notifications) / Profile), icon-only like X. The Profile tab
+// opens the user's OWN profile page directly. The header avatar opens
+// an X-style drawer (components/Drawer.tsx) that is the menu home —
+// wallet, names, swap, bookmarks, server and settings are reached
+// from its rows. Everything else — Compose, Thread, other users'
+// profiles, and the tool screens — is an overlay pushed on a small
+// stack above the tab content, so Back returns to where the user was.
 type Tab = 'home' | 'search' | 'notifications' | 'profile';
 type Overlay =
   | { kind: 'compose' }
@@ -80,8 +83,23 @@ function AppInner() {
   const [myNodeUrl, setMyNodeUrl] = useState('');
   const [wallet, setWallet] = useState<ethers.HDNodeWallet | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-
-  const senderId = session?.authorizedTokenIds[0] ?? null;
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  // The acting-name pick (QL1's actingId slot): the compose name chip
+  // switches among the ids the node session authorizes. Default is
+  // the session's first authorized id — exactly the pre-v0.4.0
+  // derivation — and a pick is honored only while it stays inside
+  // session.authorizedTokenIds, so the signing path never sees an
+  // unauthorized sender.
+  const [senderPick, setSenderPick] = useState<number | null>(null);
+  const authorizedIds = session?.authorizedTokenIds ?? [];
+  const senderId =
+    senderPick != null && authorizedIds.includes(senderPick)
+      ? senderPick
+      : (authorizedIds[0] ?? null);
+  const sessionAddress = session?.address ?? null;
+  useEffect(() => {
+    setSenderPick(null);
+  }, [sessionAddress]);
   const langRef = React.useRef(lang);
   langRef.current = lang;
 
@@ -244,6 +262,10 @@ function AppInner() {
 
   const primaryName = names[0] ?? null;
   const senderObj = names.find((n) => n.tokenId === senderId) ?? null;
+  // The names the compose chip may switch among: owned AND authorized.
+  const senderOptions = names.filter((n) => authorizedIds.includes(n.tokenId));
+  // The Profile tab's page: the acting name when there is one.
+  const ownProfileName = senderObj ?? primaryName;
 
   // Unread-notification dot for the Notifications tab. Read once per
   // session / tab change from the notifications fetch (its response
@@ -264,6 +286,23 @@ function AppInner() {
   useEffect(() => {
     void refreshUnread();
   }, [refreshUnread, tab]);
+
+  // Android back (QL1's order): the drawer closes first, then the
+  // top overlay pops; at the tab root the system default applies.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (drawerOpen) {
+        setDrawerOpen(false);
+        return true;
+      }
+      if (stack.length > 0) {
+        pop();
+        return true;
+      }
+      return false;
+    });
+    return () => sub.remove();
+  }, [drawerOpen, stack.length, pop]);
 
   const onNodeUrlChange = useCallback(
     async (url: string) => {
@@ -347,6 +386,8 @@ function AppInner() {
             senderId={senderId}
             senderName={senderObj?.name ?? null}
             senderImageSvg={senderObj?.imageSvg ?? null}
+            senderOptions={senderOptions}
+            onPickSender={setSenderPick}
             onDone={pop}
           />
         ) : null;
@@ -395,7 +436,19 @@ function AppInner() {
         );
       case 'wallet':
         return (
-          <WalletBalances lang={lang} wallet={wallet} preset={preset} names={names} onClose={pop} />
+          <WalletBalances
+            lang={lang}
+            wallet={wallet}
+            preset={preset}
+            names={names}
+            onClose={pop}
+            onOpenProfile={() => {
+              setStack([]);
+              setTab('profile');
+            }}
+            onOpenSend={() => push({ kind: 'send' })}
+            onOpenMint={() => push({ kind: 'mint' })}
+          />
         );
       case 'mint':
         return (
@@ -446,85 +499,113 @@ function AppInner() {
     }
   };
 
-  const showHeader = tab === 'home' || tab === 'search';
-
   return (
     <View style={styles.root}>
       <StatusBar style="dark" />
       <View style={{ flex: 1, backgroundColor: xColors.bg }}>
-        {showHeader && (
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              paddingHorizontal: 16,
-              paddingTop: insets.top + 8,
-              paddingBottom: 8,
-              backgroundColor: xColors.bg,
-              borderBottomWidth: 1,
-              borderBottomColor: xColors.border,
-            }}
+        {/* Header (QL1 v0.6.1 form, on every tab): as spare as X's
+            own — the acting name's avatar at the start (tapping it
+            opens the drawer, the menu home), a small centered CAW
+            mark, and at the end the node connection status chip.
+            The status display is functionally necessary on this
+            side (posting depends on the node session), so it keeps
+            its place here and on the drawer's Server row. */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingHorizontal: 16,
+            paddingTop: insets.top + 10,
+            paddingBottom: 10,
+            backgroundColor: xColors.bg,
+            borderBottomWidth: 1,
+            borderBottomColor: xColors.border,
+          }}
+        >
+          <Pressable
+            onPress={() => setDrawerOpen(true)}
+            hitSlop={6}
+            style={({ pressed }) => [
+              { width: 44, height: 40, alignItems: 'flex-start', justifyContent: 'center' },
+              pressed && { opacity: 0.7 },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={t.tabProfile}
           >
-            <View style={{ flex: 1, alignItems: 'flex-start' }}>
-              {primaryName?.imageSvg ? (
-                <View style={{ width: 32, height: 32, borderRadius: 16, overflow: 'hidden' }}>
-                  <SvgXml xml={primaryName.imageSvg} width={32} height={32} />
-                </View>
-              ) : primaryName ? (
-                <View
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 16,
-                    backgroundColor: xColors.accent,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>
-                    {primaryName.name.replace(/^#/, '').charAt(0).toUpperCase() || 'C'}
-                  </Text>
-                </View>
-              ) : (
-                <Image
-                  source={require('./assets/icon.png')}
-                  style={{ width: 32, height: 32, borderRadius: 16 }}
-                />
-              )}
-            </View>
-            <Text style={{ fontSize: 20, fontWeight: '800', color: xColors.text }}>CAW</Text>
-            <View style={{ flex: 1, alignItems: 'flex-end' }}>
-              <Text style={{ fontSize: 11, fontWeight: primaryName ? '700' : '400', color: primaryName ? xColors.text : xColors.sub }}>
-                {primaryName ? `@${primaryName.name}` : session ? t.headerNoName : t.headerWaiting}
-              </Text>
+            {primaryName?.imageSvg ? (
+              <View style={{ width: 32, height: 32, borderRadius: 16, overflow: 'hidden' }}>
+                <SvgXml xml={primaryName.imageSvg} width={32} height={32} />
+              </View>
+            ) : primaryName ? (
               <View
                 style={{
-                  marginTop: 2,
-                  borderWidth: 1,
-                  borderColor: xColors.border,
-                  borderRadius: 999,
-                  paddingHorizontal: 7,
-                  paddingVertical: 2,
-                  flexDirection: 'row',
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: xColors.accent,
                   alignItems: 'center',
-                  gap: 4,
+                  justifyContent: 'center',
                 }}
               >
-                <View
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: 3,
-                    backgroundColor: session ? xColors.recaw : xColors.divider,
-                  }}
-                />
-                <Text style={{ fontSize: 10, color: session ? xColors.accent : xColors.sub }}>
-                  {session ? t.chipConnected : t.headerWaiting}
+                <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>
+                  {primaryName.name.replace(/^#/, '').charAt(0).toUpperCase() || 'C'}
                 </Text>
               </View>
-            </View>
+            ) : (
+              <Image
+                source={require('./assets/icon.png')}
+                style={{ width: 32, height: 32, borderRadius: 16 }}
+              />
+            )}
+          </Pressable>
+          <View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: insets.top,
+              bottom: 0,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+            }}
+          >
+            <Image
+              source={require('./assets/icon.png')}
+              style={{ width: 20, height: 20, borderRadius: 5 }}
+            />
+            <Text style={{ fontSize: 17, fontWeight: '800', color: xColors.text, letterSpacing: 0.5 }}>
+              CAW
+            </Text>
           </View>
-        )}
+          <View
+            style={{
+              borderWidth: 1,
+              borderColor: xColors.border,
+              borderRadius: 999,
+              paddingHorizontal: 7,
+              paddingVertical: 2,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 4,
+            }}
+          >
+            <View
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: 3,
+                backgroundColor: session ? xColors.recaw : xColors.divider,
+              }}
+            />
+            <Text style={{ fontSize: 10, color: session ? xColors.accent : xColors.sub }}>
+              {session ? t.chipConnected : t.headerWaiting}
+            </Text>
+          </View>
+        </View>
 
         {tab === 'home' && (
           <Home
@@ -553,22 +634,43 @@ function AppInner() {
         {tab === 'notifications' && (
           <Notifications lang={lang} session={session} senderId={senderId} />
         )}
-        {tab === 'profile' && (
-          <ProfileMenu
-            lang={lang}
-            wallet={wallet}
-            preset={preset}
-            session={session}
-            names={names}
-            onOpenWallet={() => push({ kind: 'wallet' })}
-            onOpenNames={() => push({ kind: 'mint' })}
-            onOpenSwap={() => push({ kind: 'swap' })}
-            onOpenSend={() => push({ kind: 'send' })}
-            onOpenBookmarks={() => push({ kind: 'bookmarks' })}
-            onOpenServer={() => push({ kind: 'node' })}
-            onOpenSettings={() => push({ kind: 'settings' })}
-          />
-        )}
+        {tab === 'profile' &&
+          (ownProfileName ? (
+            <UserProfile
+              key={ownProfileName.tokenId}
+              lang={lang}
+              wallet={wallet}
+              preset={preset}
+              session={session}
+              senderId={senderId}
+              tokenId={ownProfileName.tokenId}
+              username={ownProfileName.name}
+              onOpenPost={openPost}
+              onOpenUser={openUser}
+            />
+          ) : (
+            <View style={{ flex: 1, paddingHorizontal: 16, paddingTop: 16 }}>
+              <Text style={{ fontSize: 15, color: xColors.text, lineHeight: 22 }}>
+                {t.noNamesYet}
+              </Text>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: xColors.accent,
+                  borderRadius: 999,
+                  paddingVertical: 13,
+                  paddingHorizontal: 20,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: 48,
+                  alignSelf: 'flex-start',
+                  marginTop: 12,
+                }}
+                onPress={() => push({ kind: 'mint' })}
+              >
+                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{t.tabMint}</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
 
         {topOverlay && (
           <View
@@ -582,14 +684,24 @@ function AppInner() {
         )}
       </View>
 
+      {/* Bottom tab bar (QL1 v0.6.0 form): FOUR entries, icon-only
+          (labels survive as accessibility labels). The bell is this
+          app's Notifications tab — its unread badge is the count
+          badge in QL1's metrics, fed by the same getNotifications
+          read as before. */}
       <View
         style={{
           flexDirection: 'row',
           borderTopWidth: 1,
-          borderTopColor: xColors.border,
+          borderTopColor: '#e5e7eb',
           backgroundColor: xColors.bg,
-          paddingTop: 6,
-          paddingBottom: Math.max(insets.bottom, 8) + 4,
+          elevation: 8,
+          shadowColor: '#000',
+          shadowOpacity: 0.08,
+          shadowRadius: 6,
+          shadowOffset: { width: 0, height: -2 },
+          zIndex: 10,
+          paddingBottom: insets.bottom,
         }}
       >
         {(
@@ -601,67 +713,70 @@ function AppInner() {
           ] as [Tab, string][]
         ).map(([key, label]) => {
           const active = tab === key;
-          const color = active ? xColors.text : xColors.sub;
+          const color = active ? xColors.accent : xColors.sub;
           const icon =
             key === 'home' ? (
-              <HomeIcon size={23} color={color} filled={active} />
+              <HomeIcon size={22} color={color} filled={active} />
             ) : key === 'search' ? (
-              <SearchIcon size={23} color={color} />
+              <SearchIcon size={22} color={color} />
             ) : key === 'notifications' ? (
-              <BellIcon size={23} color={color} filled={active} />
+              <BellIcon size={22} color={color} filled={active} />
             ) : (
-              <PersonIcon size={23} color={color} filled={active} />
+              <PersonIcon size={22} color={color} filled={active} />
             );
           return (
             <TouchableOpacity
               key={key}
-              style={{ flex: 1, alignItems: 'center', paddingTop: 2 }}
+              style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 10 }}
               onPress={() => goTab(key)}
+              accessibilityRole="button"
+              accessibilityLabel={label}
             >
-              {tab === key && (
-                <View
-                  style={{
-                    position: 'absolute',
-                    top: -8,
-                    height: 3,
-                    width: 48,
-                    borderRadius: 2,
-                    backgroundColor: xColors.accent,
-                  }}
-                />
-              )}
-              <View>
+              <View style={{ alignItems: 'center', justifyContent: 'center' }}>
                 {icon}
                 {key === 'notifications' && unreadCount != null && unreadCount > 0 && (
                   <View
                     style={{
                       position: 'absolute',
-                      top: -1,
-                      right: -2,
-                      width: 9,
-                      height: 9,
-                      borderRadius: 5,
+                      top: -5,
+                      right: -5,
+                      minWidth: 19,
+                      height: 19,
+                      borderRadius: 10,
+                      paddingHorizontal: 5,
                       backgroundColor: xColors.accent,
+                      alignItems: 'center',
+                      justifyContent: 'center',
                       borderWidth: 1.5,
                       borderColor: xColors.bg,
                     }}
-                  />
+                  >
+                    <Text style={{ fontSize: 10.5, fontWeight: '800', color: '#fff' }}>
+                      {unreadCount > 99 ? '99+' : String(unreadCount)}
+                    </Text>
+                  </View>
                 )}
               </View>
-              <Text
-                style={{
-                  fontSize: 10,
-                  color,
-                  fontWeight: active ? '700' : '400',
-                  marginTop: 2,
-                }}
-              >
-                {label}
-              </Text>
             </TouchableOpacity>
           );
         })}
       </View>
+
+      <Drawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        lang={lang}
+        name={ownProfileName}
+        session={session}
+        onOpenProfile={() => goTab('profile')}
+        onOpenWallet={() => push({ kind: 'wallet' })}
+        onOpenNames={() => push({ kind: 'mint' })}
+        onOpenSwap={() => push({ kind: 'swap' })}
+        onOpenBookmarks={() => push({ kind: 'bookmarks' })}
+        onOpenNotifications={() => goTab('notifications')}
+        onOpenServer={() => push({ kind: 'node' })}
+        onOpenSettings={() => push({ kind: 'settings' })}
+      />
     </View>
   );
 }
